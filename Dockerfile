@@ -8,6 +8,8 @@ RUN apt-get update && apt-get install -y \
     python3-catkin-tools \
     python3-vcstool \
     ros-noetic-ros-comm \
+    ros-noetic-usb-cam \
+    ros-noetic-image-view \
     x11-xserver-utils \
     iputils-ping \
     mesa-utils libgl1-mesa-glx libgl1-mesa-dri \
@@ -40,6 +42,9 @@ RUN echo "source /opt/ros/noetic/setup.bash" >> /root/.bashrc && \
 
 # Copia il file entrypoint nello container
 COPY entrypoint.sh /entrypoint.sh
+
+# Copia il file di launch personalizzato al posto di quello di default
+COPY usb_cam-test.launch /opt/ros/noetic/share/usb_cam/launch/usb_cam-test.launch
 
 # Rende eseguibile lo script entrypoint
 RUN chmod +x /entrypoint.sh
