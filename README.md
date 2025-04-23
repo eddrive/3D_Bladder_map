@@ -63,6 +63,9 @@ docker build: Initiates the Docker build process.
 
 2. Run the Docker Container
 ```shellscript
+xhost +local:root
+```
+```shellscript
 docker run -it --rm --net=host -e DISPLAY=$DISPLAY -v /tmp/.X11-unix:/tmp/.X11-unix ur_driver_noetic:latest
 ```
 
@@ -82,14 +85,14 @@ ur_driver_noetic:latest: Specifies the image to use with the latest tag.
 
 3. Access the Running Container's Shell
 ```shellscript
-docker exec -it ur_driver_noetic bash
+docker exec -it $container name$ bash
 ```
 
 Purpose: Opens an interactive bash shell within the running Docker container.
 Explanation:
 docker exec: Runs a command inside a running container.
 -it: Ensures the session is interactive, allowing direct terminal input.
-ur_driver_noetic: Identifies the container by name or container ID.
+$container name$: Identifies the container by name or container ID, you can just pres tab and is filled automatically.
 bash: The command to execute in the container, which starts a bash shell.
 
 
@@ -108,4 +111,28 @@ ur3_bringup.launch: The launch file that sets up the UR3 robot driver.
 robot_ip:=141.64.75.55: Parameter to define the IP address of the UR3 robotic arm.
 kinematics_config:=${HOME}/ur3_calibration.yaml: Sets the path to the kinematics calibration file necessary for accurate robot movements.
 
+### Additional ROS Commands
+1. Launch RViz for UR Driver
 
+```shellscript
+roslaunch ur_robot_driver example_rviz.launch
+```
+Purpose: Starts an instance of RViz configured for visualizing and interacting with the UR robot driver data.
+
+Explanation:
+
+roslaunch: Initiates the launch process for ROS nodes using the specified launch file.
+ur_robot_driver: References the ROS package related to the UR robot.
+example_rviz.launch: Launch file configured to open RViz with pre-configured settings tailored for the UR driver.
+2. Test Movement Command
+
+``` shellscript
+rosrun ur_robot_driver test_move
+```
+Purpose: Executes a test command from the ur_robot_driver package to perform movement routines, verifying the setup and connectivity with the UR robot.
+
+Explanation:
+
+rosrun: ROS command to directly run an executable from a given package.
+ur_robot_driver: Specifies the package where the test executable is located.
+test_move: The executable responsible for performing a movement test on the robot.
