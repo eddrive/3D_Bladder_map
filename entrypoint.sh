@@ -1,5 +1,4 @@
 #!/bin/bash
-
 set -e
 
 # Imposta variabili per X11 e Qt
@@ -7,7 +6,7 @@ export DISPLAY=${DISPLAY:-":0"}
 export QT_X11_NO_MITSHM=1
 export QT_QPA_PLATFORM="xcb"
 
-# Abilita accesso X11 per il root/docker (assicurati di eseguire `xhost +local:` sull'host prima di eseguire il container)
+# Abilita accesso X11 per root/docker (ricorda di eseguire "xhost +local:" sull'host)
 if command -v xhost &> /dev/null; then
     xhost +local:root
 fi
@@ -16,21 +15,21 @@ fi
 source /opt/ros/noetic/setup.bash
 source /catkin_ws/devel/setup.bash
 
-# Avvia `roscore` in background
+# Avvia roscore in background e attendi che si stabilizzi
 echo "Avvio di roscore in background..."
 roscore > /dev/null 2>&1 &
-sleep 2
+sleep 5
 
-# Rimuovi potenziali vecchi parametri `/run_id` da sessioni precedenti
+# Rimuovi il parametro /run_id per eliminare residui da sessioni precedenti
+echo "Eliminazione di /run_id..."
 rosparam delete /run_id || echo "Nessun run_id presente da eliminare."
+sleep 2
 
 # Avvia la simulazione con il package customizzato
 echo "Avvio simulazione Universal Robot UR3 con gripper ed endoscopio in Gazebo..."
 roslaunch my_ur3_setup ur_gripper.launch world:=empty.world &
-GAZEBO_PID=$! # Salva il PID del processo Gazebo per gestione successiva
+GAZEBO_PID=$!
+sleep 10
 
-# Aspetta che Gazebo abbia il tempo di inizializzare completamente
-sleep 5
-
-# Mantieni il container attivo o lascia il controllo alla shell
+# Mantieni il container attivo
 wait

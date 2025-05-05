@@ -1,19 +1,15 @@
 <?xml version="1.0"?>
 <robot xmlns:xacro="http://www.ros.org/wiki/xacro" name="ur3_gripper_endoscope">
 
-  <!-- Robot base -->
+  <!-- Include modello base UR3: assicurati che il file base sia accessibile -->
   <xacro:include filename="$(find ur_description)/urdf/ur3.xacro"/>
-
-  <!-- Include il gripper -->
+  <!-- Includi macro gripper -->
   <xacro:include filename="$(find my_ur3_setup)/urdf/grippers/rg2_gripper.xacro"/>
-
-  <!-- Include l'endoscopio -->
+  <!-- Includi macro endoscopio -->
   <xacro:include filename="$(find my_ur3_setup)/urdf/grippers/endoscope_attachment.xacro"/>
 
-  <!-- Instanzia il gripper -->
-  <xacro:rg2_gripper prefix="endo_" parent="tool0"/>
-
-  <!-- Instanzia l'endoscopio camera sulla base del gripper -->
-  <xacro:endoscope_camera prefix="endo_" parent="endo_gripper_base"/>
-
+  <!-- Crea il gripper attaccato a tool0 -->
+  <xacro:rg2_gripper prefix="gripper_" parent="tool0"/>
+  <!-- Crea l'endoscopio/camera attaccato al gripper -->
+  <xacro:endoscope_camera prefix="endo_" parent="gripper_gripper_base"/>
 </robot>
