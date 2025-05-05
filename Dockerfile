@@ -1,57 +1,68 @@
-# Usa l'immagine base di ROS Noetic (Ubuntu 20.04)
-FROM ros:noetic-ros-base
+# Usa l'immagine completa di ROS Noetic con desktop e Gazebo Classic, MoveIt, RViz, ecc
+FROM osrf/ros:noetic-desktop-full
+
+ENV DEBIAN_FRONTEND=noninteractive
 ENV LIBGL_ALWAYS_SOFTWARE=1
 
-# Installa gli strumenti di sviluppo, i tool di catkin, i pacchetti base di ROS e il pacchetto x11-xserver-utils
+# Aggiorna e installa driver UR, pacchetti Gazebo, sensori virtuali, strumenti di test
 RUN apt-get update && apt-get install -y \
     git \
+    ros-noetic-ur-robot-driver \
+    ros-noetic-gazebo-ros-control \
+    ros-noetic-gazebo-plugins \
+    ros-noetic-joint-state-publisher-gui \
+    ros-noetic-robot-state-publisher \
+    ros-noetic-xacro \
+    ros-noetic-moveit \
+    ros-noetic-rviz \
+    ros-noetic-teleop-twist-keyboard \
+    ros-noetic-warehouse-ros-mongo \
+    ros-noetic-trac-ik-kinematics-plugin \
+    ros-noetic-industrial-robot-status-interface \
+    ros-noetic-effort-controllers \
     python3-catkin-tools \
     python3-vcstool \
-    ros-noetic-ros-comm \
-    ros-noetic-usb-cam \
-    ros-noetic-image-view \
     x11-xserver-utils \
     iputils-ping \
     mesa-utils libgl1-mesa-glx libgl1-mesa-dri \
+    python3-rosdep \
     && rm -rf /var/lib/apt/lists/*
 
-# Crea la cartella della workspace e dei sorgenti
-RUN mkdir -p /catkin_ws/src
+# Solo update di rosdep
+RUN rosdep update
 
-# Imposta la working directory
+# Crea la catkin workspace e imposta la working directory
+RUN mkdir -p /catkin_ws/src
 WORKDIR /catkin_ws/src
 
-# Clona il repository del driver
+# Clona i repository essenziali Universal Robots (driver e meta-package)
 RUN git clone https://github.com/UniversalRobots/Universal_Robots_ROS_Driver.git
+RUN git clone https://github.com/ros-industrial/universal_robot.git
 
 # Torna alla cartella principale della workspace
 WORKDIR /catkin_ws
 
-# Installa le dipendenze tramite rosdep
-RUN apt-get update && apt-get install -y python3-rosdep && \
-    rosdep update && \
-    rosdep install --from-paths src --ignore-src -y && \
+# Aggiorna apt e installa le dipendenze
+RUN apt-get update && \
+    rosdep install --from-paths src --ignore-src -r -y && \
     rm -rf /var/lib/apt/lists/*
 
-# Compila la workspace
+# Compila la workspace catkin
 RUN /bin/bash -c "source /opt/ros/noetic/setup.bash && catkin_make"
 
-# Imposta i sourcing per bash
+# Imposta l'ambiente ROS alla partenza
 RUN echo "source /opt/ros/noetic/setup.bash" >> /root/.bashrc && \
     echo "source /catkin_ws/devel/setup.bash" >> /root/.bashrc
 
-# Copia il file entrypoint nello container
+# Copia eventuale entrypoint e launch di test
 COPY entrypoint.sh /entrypoint.sh
 
-# Copia il file di launch personalizzato al posto di quello di default
-COPY usb_cam-test.launch /opt/ros/noetic/share/usb_cam/launch/usb_cam-test.launch
+COPY ./Add/grippers/* /catkin_ws/src/universal_robot/ur_gazebo/urdf/grippers/
+COPY ./Add/ur_gripper.launch /catkin_ws/src/universal_robot/ur_gazebo/launch/ur_gripper.launch
+COPY ./Add/ur3_gripper_endoscope.xacro /catkin_ws/src/universal_robot/ur_gazebo/urdf/ur3_gripper_endoscope.xacro
 
-# Rende eseguibile lo script entrypoint
 RUN chmod +x /entrypoint.sh
 
-# Imposta l'entrypoint
 ENTRYPOINT ["/entrypoint.sh"]
-
-# Specifica il comando di default (es. bash)
 CMD ["bash"]
 

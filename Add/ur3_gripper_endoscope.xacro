@@ -1,0 +1,72 @@
+<?xml version="1.0"?>
+<robot xmlns:xacro="http://ros.org/wiki/xacro" name="ur3_gripper_endoscope">
+
+  <!-- Robot base -->
+  <xacro:include filename="$(find ur_description)/urdf/ur3.xacro"/>
+  
+  <!-- MACRO del gripper: punta a un tuo xacro o quello della repo RG2 -->
+  <xacro:include filename="$(find my_ur3_setup)/urdf/rg2_gripper.xacro"/>
+
+  <!-- MACRO per la camera endoscopica -->
+  <xacro:macro name="endoscope_camera" params="prefix parent">
+    <link name="${prefix}camera_link">
+      <visual>
+        <origin xyz="0 0 0.04" rpy="0 0 0"/>
+        <geometry>
+          <cylinder radius="0.008" length="0.08"/>
+        </geometry>
+        <material name="blue">
+          <color rgba="0.1 0.3 0.7 1"/>
+        </material>
+      </visual>
+      <collision>
+        <origin xyz="0 0 0.04" rpy="0 0 0"/>
+        <geometry>
+          <cylinder radius="0.008" length="0.08"/>
+        </geometry>
+      </collision>
+      <inertial>
+        <origin xyz="0 0 0.04" rpy="0 0 0"/>
+        <mass value="0.01"/>
+        <inertia ixx="2e-5" iyy="2e-5" izz="1e-5" ixy="0" ixz="0" iyz="0"/>
+      </inertial>
+    </link>
+    <joint name="${prefix}camera_mount" type="fixed">
+      <parent link="${parent}"/>
+      <child link="${prefix}camera_link"/>
+      <origin xyz="0 0 0.08" rpy="0 0 0"/>
+    </joint>
+    <!-- Gazebo camera plugin -->
+    <gazebo reference="${prefix}camera_link">
+      <sensor type="camera" name="endoscope_cam">
+        <update_rate>30</update_rate>
+        <camera>
+          <horizontal_fov>1.0472</horizontal_fov>
+          <image>
+            <width>640</width>
+            <height>480</height>
+            <format>R8G8B8</format>
+          </image>
+          <clip>
+            <near>0.01</near>
+            <far>2</far>
+          </clip>
+        </camera>
+        <plugin name="camera_controller" filename="libgazebo_ros_camera.so">
+          <ros>
+            <namespace>/endoscope</namespace>
+          </ros>
+          <frame_name>${prefix}camera_link</frame_name>
+        </plugin>
+      </sensor>
+    </gazebo>
+  </xacro:macro>
+
+  <!-- Instanzia il gripper: -->
+  <xacro:rg2_gripper prefix="endo_" parent="tool0"/>
+  
+  <!-- Instanzia la camera sull’estremità del gripper: -->
+  <!-- Cambia "endo_gripper_base" su dove vuoi fissarlo (ad esempio tra le dita o sulla base) -->
+  <xacro:endoscope_camera prefix="endo_" parent="endo_gripper_base"/>
+
+</robot>

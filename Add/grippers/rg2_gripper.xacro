@@ -1,0 +1,19 @@
+<xacro:macro name="rg2_gripper" params="prefix parent">
+  <link name="${prefix}gripper_base">
+    <visual>
+      <geometry>
+        <box size="0.09 0.03 0.02"/>
+      </geometry>
+      <material name="gray"/>
+    </visual>
+    <inertial>
+      <mass value="0.16"/>
+      <inertia ixx="1e-4" ixy="0" ixz="0" iyy="1e-4" iyz="0" izz="1e-4"/>
+    </inertial>
+  </link>
+  <joint name="${prefix}gripper_joint" type="fixed">
+    <parent link="${parent}"/>
+    <child link="${prefix}gripper_base"/>
+    <origin xyz="0 0 0.05" rpy="0 0 0"/>
+  </joint>
+</xacro:macro>

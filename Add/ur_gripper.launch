@@ -1,0 +1,22 @@
+<launch>
+  <!-- Parametri obbligatori -->
+  <arg name="joint_limit_params" default="$(find ur_description)/config/ur3/joint_limits.yaml"/>
+  <arg name="kinematics_params" default="$(find ur_description)/config/ur3/default_kinematics.yaml"/>
+  <arg name="physical_params" default="$(find ur_description)/config/ur3/physical_parameters.yaml"/>
+  <arg name="visual_params" default="$(find ur_description)/config/ur3/visual_parameters.yaml"/>
+  <arg name="transmission_hw_interface" default="hardware_interface/EffortJointInterface"/>
+
+  <!-- Load urdf custom -->
+  <param name="robot_description" command="$(find xacro)/xacro '$(find my_ur3_setup)/urdf/ur3_gripper_endoscope.xacro'" />
+
+  <!-- Usa controller, Gazebo e node spawner come lanciato normalmente -->
+  <include file="$(find ur_gazebo)/launch/inc/ur_control.launch.xml">
+    <arg name="controller_config_file" value="$(find ur_gazebo)/config/ur3_controllers.yaml"/>
+    <arg name="controllers" value="joint_state_controller eff_joint_traj_controller"/>
+    <arg name="gui" value="true"/>
+    <arg name="paused" value="false"/>
+    <arg name="stopped_controllers" value="joint_group_eff_controller"/>
+  </include>
+
+  <!-- Spawner per moveit/robot state publisher e altro se vuoi -->
+</launch>
