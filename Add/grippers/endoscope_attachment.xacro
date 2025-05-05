@@ -1,40 +1,45 @@
-<xacro:macro name="endoscope_camera" params="prefix parent">
-  <link name="${prefix}camera_link">
-    <inertial> ... </inertial>
-    <visual>
-      <geometry> <box size="0.05 0.03 0.03"/> </geometry>
-      <material name="blue"/>
-    </visual>
-  </link>
-  
-  <joint name="${prefix}camera_joint" type="fixed">
-    <parent link="${parent}"/> <!-- es: gripper_center -->
-    <child link="${prefix}camera_link"/>
-    <origin xyz="0 0 -0.1" rpy="${-pi/2} 0 0"/> <!-- Assicura orientamento verso il target -->
-  </joint>
+<?xml version="1.0"?>
+<robot xmlns:xacro="http://www.ros.org/wiki/xacro">
+  <xacro:macro name="endoscope_camera" params="prefix parent">
+    <link name="${prefix}camera_link">
+      <inertial> ... </inertial>
+      <visual>
+        <geometry>
+          <box size="0.05 0.03 0.03"/>
+        </geometry>
+        <material name="blue"/>
+      </visual>
+    </link>
 
-  <!-- Plugin Gazebo per la camera -->
-  <gazebo reference="${prefix}camera_link">
-    <sensor type="camera" name="endoscope_cam">
-      <update_rate>30</update_rate>
-      <camera name="endoscope">
-        <horizontal_fov>1.0472</horizontal_fov> <!-- 60° -->
-        <image>
-          <width>640</width>
-          <height>480</height>
-          <format>R8G8B8</format>
-        </image>
-        <clip>
-          <near>0.1</near>
-          <far>100</far>
-        </clip>
-      </camera>
-      <plugin name="camera_controller" filename="libgazebo_ros_camera.so">
-        <ros>
-          <namespace>/endoscope</namespace>
-        </ros>
-        <frame_name>${prefix}camera_link</frame_name>
-      </plugin>
-    </sensor>
-  </gazebo>
-</xacro:macro>
+    <joint name="${prefix}camera_joint" type="fixed">
+      <parent link="${parent}"/> <!-- es: gripper_center -->
+      <child link="${prefix}camera_link"/>
+      <origin xyz="0 0 -0.1" rpy="${-pi/2} 0 0"/> <!-- Assicura orientamento verso il target -->
+    </joint>
+
+    <!-- Plugin Gazebo per la camera -->
+    <gazebo reference="${prefix}camera_link">
+      <sensor type="camera" name="endoscope_cam">
+        <update_rate>30</update_rate>
+        <camera name="endoscope">
+          <horizontal_fov>1.0472</horizontal_fov> <!-- 60° -->
+          <image>
+            <width>640</width>
+            <height>480</height>
+            <format>R8G8B8</format>
+          </image>
+          <clip>
+            <near>0.1</near>
+            <far>100</far>
+          </clip>
+        </camera>
+        <plugin name="camera_controller" filename="libgazebo_ros_camera.so">
+          <ros>
+            <namespace>/endoscope</namespace>
+          </ros>
+          <frame_name>${prefix}camera_link</frame_name>
+        </plugin>
+      </sensor>
+    </gazebo>
+  </xacro:macro>
+</robot>

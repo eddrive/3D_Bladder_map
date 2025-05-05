@@ -57,12 +57,33 @@ RUN echo "source /opt/ros/noetic/setup.bash" >> /root/.bashrc && \
 # Copia eventuale entrypoint e launch di test
 COPY entrypoint.sh /entrypoint.sh
 
-COPY ./Add/grippers/* /catkin_ws/src/universal_robot/ur_gazebo/urdf/grippers/
-COPY ./Add/ur_gripper.launch /catkin_ws/src/universal_robot/ur_gazebo/launch/ur_gripper.launch
-COPY ./Add/ur3_gripper_endoscope.xacro /catkin_ws/src/universal_robot/ur_gazebo/urdf/ur3_gripper_endoscope.xacro
+# Crea il package customizzato my_ur3_setup (STEP 1 e 2)
+WORKDIR /catkin_ws/src
+RUN /bin/bash -c "source /opt/ros/noetic/setup.bash && catkin_create_pkg my_ur3_setup rospy std_msgs xacro ur_description gazebo_ros"
+RUN mkdir -p /catkin_ws/src/my_ur3_setup/urdf/grippers \
+    && mkdir -p /catkin_ws/src/my_ur3_setup/urdf \
+    && mkdir -p /catkin_ws/src/my_ur3_setup/launch \
+    && mkdir -p /catkin_ws/src/my_ur3_setup/config
 
+# Copia i tuoi file custom dal contesto host nella posizione giusta
+COPY ./Add/grippers/* /catkin_ws/src/my_ur3_setup/urdf/grippers/
+COPY ./Add/ur3_gripper_endoscope.xacro /catkin_ws/src/my_ur3_setup/urdf/ur3_gripper_endoscope.xacro
+COPY ./Add/ur_gripper.launch /catkin_ws/src/my_ur3_setup/launch/ur_gripper.launch
+# (Aggiungi altri file eventuali nelle cartelle giuste.)
+
+# Torna nella root del workspace e ricompila
+WORKDIR /catkin_ws
+RUN /bin/bash -c "source /opt/ros/noetic/setup.bash && catkin_make"
+
+# Sourcing automatico dell'ambiente ROS catkin
+RUN echo "source /opt/ros/noetic/setup.bash" >> /root/.bashrc && \
+    echo "source /catkin_ws/devel/setup.bash" >> /root/.bashrc
+
+# Copia l'entrypoint
+COPY entrypoint.sh /entrypoint.sh
 RUN chmod +x /entrypoint.sh
 
 ENTRYPOINT ["/entrypoint.sh"]
 CMD ["bash"]
+
 
