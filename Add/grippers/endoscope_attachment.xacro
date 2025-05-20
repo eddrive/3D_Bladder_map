@@ -2,50 +2,137 @@
 <robot xmlns:xacro="http://www.ros.org/wiki/xacro">
 
   <!-- Material definitions -->
-  <material name="metallic_silver">
-    <color rgba="0.7 0.7 0.7 1.0"/>
+  <material name="metallic_white">
+    <color rgba="1.0 1.0 1.0 1.0"/>
+  </material>
+  
+  <material name="camera_red">
+    <color rgba="1.0 0.0 0.0 1.0"/>
   </material>
 
-  <!-- Macro definition for the cystoscope camera -->
+  <!-- Macro definition for the endoscope with angled tip -->
   <xacro:macro name="endoscope_camera" params="prefix parent">
-    <link name="${prefix}camera_link">
+    <!-- Main endoscope shaft - straight part -->
+    <link name="${prefix}shaft_link">
       <visual>
         <geometry>
-          <!-- Adjusting to typical dimensions: cylindrical length and diameter -->
-          <cylinder length="0.35" radius="0.004"/>
+          <cylinder length="0.33" radius="0.004"/>
         </geometry>
-        <material name="metallic_silver"/>
+        <origin xyz="0 0 0" rpy="0 0 0"/>
+        <material name="metallic_white"/>
       </visual>
-
       <collision>
         <geometry>
-          <cylinder length="0.35" radius="0.004"/>
+          <cylinder length="0.33" radius="0.004"/>
         </geometry>
-      </collision>
-
-      <inertial>
-        <mass value="0.1"/>
         <origin xyz="0 0 0" rpy="0 0 0"/>
-        <!-- Adjusted inertia values -->
-        <inertia ixx="0.000005" ixy="0" ixz="0" iyy="0.000005" iyz="0" izz="0.000005"/>
+      </collision>
+      <inertial>
+        <mass value="0.08"/>
+        <origin xyz="0 0 0" rpy="0 0 0"/>
+        <inertia ixx="0.000004" ixy="0" ixz="0" iyy="0.000004" iyz="0" izz="0.000004"/>
       </inertial>
     </link>
 
-    <joint name="${prefix}fixed_joint" type="fixed">
+    <!-- Connect to parent link -->
+    <joint name="${prefix}shaft_joint" type="fixed">
       <parent link="${parent}"/>
-      <child link="${prefix}camera_link"/>
+      <child link="${prefix}shaft_link"/>
       <origin xyz="0 0 0.18" rpy="0 0 0"/>
     </joint>
 
-    <!-- Camera simulation enhancements for Gazebo -->
+    <!-- Angled tip (45-degree cut) -->
+    <link name="${prefix}angled_tip">
+      <visual>
+        <!-- Using a mesh would be ideal here, but for simplicity, we'll use a box that's rotated -->
+        <geometry>
+          <box size="0.005 0.005 0.005"/>
+        </geometry>
+        <!-- Position at the tip of the shaft and rotate to create 45-degree angle effect -->
+        <origin xyz="0 0 0" rpy="0 ${pi/4} 0"/>
+        <material name="metallic_white"/>
+      </visual>
+      <collision>
+        <geometry>
+          <box size="0.005 0.005 0.005"/>
+        </geometry>
+        <origin xyz="0 0 0" rpy="0 ${pi/4} 0"/>
+      </collision>
+      <inertial>
+        <mass value="0.001"/>
+        <origin xyz="0 0 0" rpy="0 ${pi/4} 0"/>
+        <inertia ixx="0.0000001" ixy="0" ixz="0" iyy="0.0000001" iyz="0" izz="0.0000001"/>
+      </inertial>
+    </link>
+
+    <!-- Joint connecting angled tip to shaft -->
+    <joint name="${prefix}tip_joint" type="fixed">
+      <parent link="${prefix}shaft_link"/>
+      <child link="${prefix}angled_tip"/>
+      <!-- Position at the end of the shaft -->
+      <origin xyz="0 0 0.165" rpy="0 0 0"/>
+    </joint>
+
+    <!-- Camera link - positioned at the angled tip -->
+    <link name="${prefix}camera_link">
+      <visual>
+        <geometry>
+          <sphere radius="0.0015"/>
+        </geometry>
+        <material name="camera_red"/>
+      </visual>
+      <collision>
+        <geometry>
+          <sphere radius="0.0015"/>
+        </geometry>
+      </collision>
+      <inertial>
+        <mass value="0.002"/>
+        <origin xyz="-0.005 0 0" rpy="0 ${-pi/4} 0"/>
+        <inertia ixx="0.00000005" ixy="0" ixz="0" iyy="0.00000005" iyz="0" izz="0.00000005"/>
+      </inertial>
+    </link>
+
+    <!-- Joint placing camera at the angled tip, oriented at 45 degrees -->
+    <joint name="${prefix}camera_joint" type="fixed">
+      <parent link="${prefix}angled_tip"/>
+      <child link="${prefix}camera_link"/>
+      <!-- Position camera at the center of the angled face -->
+      <origin xyz="0 0 0.003" rpy="0 ${pi/4} 0"/>
+    </joint>
+
+    <!-- Camera indicator (optional, for visibility) -->
+    <link name="${prefix}camera_direction">
+      <visual>
+        <geometry>
+          <cylinder length="0.005" radius="0.0005"/>
+        </geometry>
+        <material name="camera_red"/>
+      </visual>
+      <inertial>
+        <mass value="0.0001"/>
+        <origin xyz="0 0 0" rpy="0 0 0"/>
+        <inertia ixx="0.00000001" ixy="0" ixz="0" iyy="0.00000001" iyz="0" izz="0.00000001"/>
+      </inertial>
+    </link>
+
+    <!-- Joint for camera direction indicator -->
+    <joint name="${prefix}camera_direction_joint" type="fixed">
+      <parent link="${prefix}camera_link"/>
+      <child link="${prefix}camera_direction"/>
+      <!-- Position in front of camera, pointing outward -->
+      <origin xyz="0 0 0.0025" rpy="0 0 0"/>
+    </joint>
+
+    <!-- Gazebo camera setup -->
     <gazebo reference="${prefix}camera_link">
-      <sensor type="camera" name="${prefix}endoscope_cam">
+      <material>Gazebo/Red</material>
+      <sensor type="camera" name="${prefix}endoscope_camera">
         <update_rate>30</update_rate>
         <camera>
-          <!-- Improved field of view and resolution -->
-          <horizontal_fov>1.57</horizontal_fov> <!-- 90 degrees (in radians) -->
+          <horizontal_fov>1.57</horizontal_fov>
           <image>
-            <width>1920</width> <!-- Higher resolution -->
+            <width>1920</width>
             <height>1080</height>
             <format>R8G8B8</format>
           </image>
@@ -57,13 +144,18 @@
         <plugin name="gazebo_ros_camera" filename="libgazebo_ros_camera.so">
           <robotNamespace>/</robotNamespace>
           <frameName>${prefix}camera_link</frameName>
-          <cameraName>${prefix}endoscope_cam</cameraName>
+          <cameraName>${prefix}endoscope_camera</cameraName>
           <updateRate>30</updateRate>
+          <hackBaseline>0.07</hackBaseline>
+          <distortionK1>0.0</distortionK1>
+          <distortionK2>0.0</distortionK2>
+          <distortionK3>0.0</distortionK3>
+          <distortionT1>0.0</distortionT1>
+          <distortionT2>0.0</distortionT2>
         </plugin>
       </sensor>
     </gazebo>
   </xacro:macro>
-
 </robot>
 
 
