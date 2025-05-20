@@ -1,45 +1,57 @@
+
 <robot xmlns:xacro="http://www.ros.org/wiki/xacro">
-  <material name="blue">
-    <color rgba="0.1 0.1 0.8 1.0"/>
+
+  <!-- Material definitions -->
+  <material name="metallic_silver">
+    <color rgba="0.7 0.7 0.7 1.0"/>
   </material>
+
+  <!-- Macro definition for the cystoscope camera -->
   <xacro:macro name="endoscope_camera" params="prefix parent">
     <link name="${prefix}camera_link">
       <visual>
         <geometry>
-          <cylinder length="0.12" radius="0.01"/>
+          <!-- Adjusting to typical dimensions: cylindrical length and diameter -->
+          <cylinder length="0.35" radius="0.004"/>
         </geometry>
-        <material name="blue"/>
+        <material name="metallic_silver"/>
       </visual>
+
       <collision>
         <geometry>
-          <cylinder length="0.12" radius="0.01"/>
+          <cylinder length="0.35" radius="0.004"/>
         </geometry>
       </collision>
+
       <inertial>
-        <mass value="0.05"/>
+        <mass value="0.1"/>
         <origin xyz="0 0 0" rpy="0 0 0"/>
-        <inertia ixx="0.00001" ixy="0" ixz="0" iyy="0.00001" iyz="0" izz="0.00001"/>
+        <!-- Adjusted inertia values -->
+        <inertia ixx="0.000005" ixy="0" ixz="0" iyy="0.000005" iyz="0" izz="0.000005"/>
       </inertial>
     </link>
+
     <joint name="${prefix}fixed_joint" type="fixed">
       <parent link="${parent}"/>
       <child link="${prefix}camera_link"/>
-      <origin xyz="0 0 0.08" rpy="0 0 0"/>
+      <origin xyz="0 0 0.18" rpy="0 0 0"/>
     </joint>
-    <!-- Camera simulation per Gazebo -->
+
+    <!-- Camera simulation enhancements for Gazebo -->
     <gazebo reference="${prefix}camera_link">
       <sensor type="camera" name="${prefix}endoscope_cam">
         <update_rate>30</update_rate>
         <camera>
-          <horizontal_fov>1.0</horizontal_fov>
+          <!-- Improved field of view and resolution -->
+          <horizontal_fov>1.57</horizontal_fov> <!-- 90 degrees (in radians) -->
           <image>
-            <width>640</width>
-            <height>480</height>
+            <width>1920</width> <!-- Higher resolution -->
+            <height>1080</height>
             <format>R8G8B8</format>
           </image>
           <clip>
             <near>0.01</near>
-            <far>5</far>
+            <far>10</far>
           </clip>
         </camera>
         <plugin name="gazebo_ros_camera" filename="libgazebo_ros_camera.so">
@@ -51,4 +63,7 @@
       </sensor>
     </gazebo>
   </xacro:macro>
+
 </robot>
+
+
