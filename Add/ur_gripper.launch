@@ -1,16 +1,70 @@
+<?xml version="1.0"?>
 <launch>
-  <!-- Lancia Gazebo -->
+  <!--
+    Main entry point for loading a UR3 with gripper and endoscope into Gazebo,
+    in the empty world.
+    
+    This file combines the functionality of the original ur_gazebo launch file
+    with the custom modifications needed for the gripper and endoscope setup.
+  -->
+
+  <!-- Robot description and related parameter files -->
+  <arg name="joint_limit_params" default="$(find ur_description)/config/ur3/joint_limits.yaml"/>
+  <arg name="kinematics_params" default="$(find ur_description)/config/ur3/default_kinematics.yaml"/>
+  <arg name="physical_params" default="$(find ur_description)/config/ur3/physical_parameters.yaml"/>
+  <arg name="visual_params" default="$(find ur_description)/config/ur3/visual_parameters.yaml"/>
+  <arg name="transmission_hw_interface" default="hardware_interface/EffortJointInterface" doc="The hardware_interface to expose for each joint in the simulated robot (one of: [hardware_interface/PositionJointInterface, hardware_interface/VelocityJointInterface, hardware_interface/EffortJointInterface])"/>
+
+  <!-- Controller configuration -->
+  <arg name="controller_config_file" default="$(find ur_gazebo)/config/ur3_controllers.yaml" doc="Config file used for defining the ROS-Control controllers."/>
+  <arg name="controllers" default="joint_state_controller eff_joint_traj_controller" doc="Controllers that are activated by default."/>
+  <arg name="stopped_controllers" default="joint_group_eff_controller" doc="Controllers that are initally loaded, but not started."/>
+
+  <!-- robot_state_publisher configuration -->
+  <arg name="tf_prefix" default="" doc="tf_prefix used for the robot."/>
+  <arg name="tf_pub_rate" default="125" doc="Rate at which robot_state_publisher should publish transforms."/>
+
+  <!-- Gazebo parameters -->
+  <arg name="paused" default="false" doc="Starts Gazebo in paused mode" />
+  <arg name="gui" default="true" doc="Starts Gazebo gui" />
+  <arg name="use_sim_time" default="true" doc="Use simulation time" />
+
+  <!-- Load Gazebo with empty world -->
   <include file="$(find gazebo_ros)/launch/empty_world.launch">
     <arg name="world_name" value="$(find gazebo_ros)/worlds/empty.world"/>
-    <arg name="paused" value="false"/>
-    <arg name="use_sim_time" value="true"/>
+    <arg name="paused" value="$(arg paused)"/>
+    <arg name="gui" value="$(arg gui)"/>
+    <arg name="use_sim_time" value="$(arg use_sim_time)"/>
   </include>
 
-  <!-- Carica la descrizione del robot -->
-  <param name="robot_description" command="$(find xacro)/xacro $(find my_ur3_setup)/urdf/ur3_gripper_endoscope.xacro"/>
+  <!-- Load urdf on the parameter server -->
+  <param name="robot_description" command="$(find xacro)/xacro $(find my_ur3_setup)/urdf/ur3_gripper_endoscope.xacro
+    joint_limit_params:=$(arg joint_limit_params)
+    kinematics_params:=$(arg kinematics_params)
+    physical_params:=$(arg physical_params)
+    visual_params:=$(arg visual_params)
+    transmission_hw_interface:=$(arg transmission_hw_interface)"
+  />
 
-  <!-- Spawna il robot in origine -->
+  <!-- Robot state publisher -->
+  <node pkg="robot_state_publisher" type="robot_state_publisher" name="robot_state_publisher">
+    <param name="publish_frequency" type="double" value="$(arg tf_pub_rate)" />
+    <param name="tf_prefix" value="$(arg tf_prefix)" />
+  </node>
+
+  <!-- Spawn the robot model in Gazebo -->
   <node name="urdf_spawner" pkg="gazebo_ros" type="spawn_model" output="screen"
-        args="-param robot_description -urdf -model ur3_gripper_endo -x 0 -y 0 -z 0"/>
+        args="-param robot_description -urdf -model ur3_gripper_endoscope -x 0 -y 0 -z 0"/>
+
+  <!-- Load controllers -->
+  <rosparam file="$(arg controller_config_file)" command="load"/>
+  
+  <!-- Start controllers -->
+  <node name="controller_spawner" pkg="controller_manager" type="spawner" respawn="false"
+        output="screen" args="$(arg controllers)"/>
+  
+  <!-- Load and start the stopped controllers -->
+  <node name="controller_spawner_stopped" pkg="controller_manager" type="spawner" respawn="false"
+        output="screen" args="--stopped $(arg stopped_controllers)"/>
 
 </launch>
