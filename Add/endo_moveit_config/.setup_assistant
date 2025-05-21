@@ -1,0 +1,11 @@
+moveit_setup_assistant_config:
+  URDF:
+    package: my_ur3_setup
+    relative_path: urdf/ur3_gripper_endoscope.xacro
+    xacro_args: ""
+  SRDF:
+    relative_path: config/ur3_gripper_endoscope.srdf
+  CONFIG:
+    author_name: edo
+    author_email: edo@gmail.com
+    generated_timestamp: 1747847973

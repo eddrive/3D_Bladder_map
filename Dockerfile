@@ -37,7 +37,7 @@ WORKDIR /catkin_ws/src
 
 # Clona i repository essenziali Universal Robots (driver e meta-package)
 RUN git clone https://github.com/UniversalRobots/Universal_Robots_ROS_Driver.git
-RUN git clone https://github.com/ros-industrial/universal_robot.git
+RUN git clone -b noetic https://github.com/ros-industrial/universal_robot.git
 
 # Torna alla cartella principale della workspace
 WORKDIR /catkin_ws
@@ -67,6 +67,7 @@ RUN mkdir -p /catkin_ws/src/my_ur3_setup/urdf/grippers \
 
 # Copia i tuoi file custom dal contesto host nella posizione giusta
 COPY ./Add/grippers/* /catkin_ws/src/my_ur3_setup/urdf/grippers/
+COPY ./Add/endo_moveit_config/ /catkin_ws/src/endo_moveit_config/
 COPY ./Add/ur3_gripper_endoscope.xacro /catkin_ws/src/my_ur3_setup/urdf/ur3_gripper_endoscope.xacro
 COPY ./Add/ur_gripper.launch /catkin_ws/src/my_ur3_setup/launch/ur_gripper.launch
 # (Aggiungi altri file eventuali nelle cartelle giuste.)
