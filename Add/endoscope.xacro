@@ -77,13 +77,13 @@
     <link name="${prefix}camera_link">
       <visual>
         <geometry>
-          <sphere radius="0.0015"/>
+          <sphere radius="0.0005"/>
         </geometry>
         <material name="camera_red"/>
       </visual>
       <collision>
         <geometry>
-          <sphere radius="0.0015"/>
+          <sphere radius="0.0005"/>
         </geometry>
       </collision>
       <inertial>
@@ -99,29 +99,6 @@
       <child link="${prefix}camera_link"/>
       <!-- Position camera at the center of the angled face -->
       <origin xyz="0 0 0.003" rpy="0 ${pi/4} 0"/>
-    </joint>
-
-    <!-- Camera indicator (optional, for visibility) -->
-    <link name="${prefix}camera_direction">
-      <visual>
-        <geometry>
-          <cylinder length="0.005" radius="0.0005"/>
-        </geometry>
-        <material name="camera_red"/>
-      </visual>
-      <inertial>
-        <mass value="0.0001"/>
-        <origin xyz="0 0 0" rpy="0 0 0"/>
-        <inertia ixx="0.00000001" ixy="0" ixz="0" iyy="0.00000001" iyz="0" izz="0.00000001"/>
-      </inertial>
-    </link>
-
-    <!-- Joint for camera direction indicator -->
-    <joint name="${prefix}camera_direction_joint" type="fixed">
-      <parent link="${prefix}camera_link"/>
-      <child link="${prefix}camera_direction"/>
-      <!-- Position in front of camera, pointing outward -->
-      <origin xyz="0 0 0.0025" rpy="0 0 0"/>
     </joint>
 
     <!-- Gazebo camera setup -->

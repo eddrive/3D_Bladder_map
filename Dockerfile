@@ -66,7 +66,7 @@ RUN mkdir -p /catkin_ws/src/my_ur3_setup/urdf/grippers \
     && mkdir -p /catkin_ws/src/my_ur3_setup/config
 
 # Copia i tuoi file custom dal contesto host nella posizione giusta
-COPY ./Add/grippers/* /catkin_ws/src/my_ur3_setup/urdf/grippers/
+COPY ./Add/endoscope.xacro /catkin_ws/src/my_ur3_setup/urdf/endoscope.xacro
 COPY ./Add/ur.xacro /catkin_ws/src/universal_robot/ur_gazebo/urdf/ur.xacro
 COPY ./Add/endo_moveit_config/ /catkin_ws/src/endo_moveit_config/
 # (Aggiungi altri file eventuali nelle cartelle giuste.)
