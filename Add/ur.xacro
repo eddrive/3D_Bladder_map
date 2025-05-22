@@ -1,0 +1,55 @@
+<robot xmlns:xacro="http://wiki.ros.org/xacro" name="$(arg robot_model)_robot">
+
+  <!-- Include macro per il robot UR -->
+  <xacro:include filename="$(find ur_gazebo)/urdf/ur_macro.xacro"/>
+
+  <!-- Include macro per il gripper e l'endoscopio -->
+  <xacro:include filename="$(find my_ur3_setup)/urdf/grippers/rg2_gripper.xacro"/>
+  <xacro:include filename="$(find my_ur3_setup)/urdf/grippers/endoscope_attachment.xacro"/>
+
+  <!-- Parametri dichiarati dall'utente -->
+  <xacro:arg name="joint_limit_params" default=""/>
+  <xacro:arg name="kinematics_params" default=""/>
+  <xacro:arg name="physical_params" default=""/>
+  <xacro:arg name="visual_params" default=""/>
+  <xacro:arg name="transmission_hw_interface" default="hardware_interface/EffortJointInterface"/>
+  <xacro:arg name="safety_limits" default="false"/>
+  <xacro:arg name="safety_pos_margin" default="0.15"/>
+  <xacro:arg name="safety_k_position" default="20"/>
+
+  <!-- Robot principale -->
+  <xacro:ur_robot_gazebo
+    prefix=""
+    joint_limits_parameters_file="$(arg joint_limit_params)"
+    kinematics_parameters_file="$(arg kinematics_params)"
+    physical_parameters_file="$(arg physical_params)"
+    visual_parameters_file="$(arg visual_params)"
+    transmission_hw_interface="$(arg transmission_hw_interface)"
+    safety_limits="$(arg safety_limits)"
+    safety_pos_margin="$(arg safety_pos_margin)"
+    safety_k_position="$(arg safety_k_position)"
+  />
+
+  <!-- Aggiungi il gripper al tool0 -->
+  <xacro:rg2_gripper prefix="gripper_" parent="tool0"/>
+
+  <!-- Aggiungi l'endoscopio montato sul gripper -->
+  <xacro:endoscope_camera prefix="endo_" parent="gripper_gripper_base"/>
+
+  <!-- Fissare la base del robot al mondo -->
+  <link name="world"/>
+  <joint name="world_joint" type="fixed">
+    <parent link="world"/>
+    <child link="base_link"/>
+    <origin xyz="0 0 0" rpy="0 0 0"/>
+  </joint>
+
+  <!-- Interfaccia per controller (facoltativa) -->
+  <link name="tool0_controller"/>
+  <joint name="tool_controller_fake_joint" type="fixed">
+    <parent link="tool0"/>
+    <child link="tool0_controller"/>
+    <origin xyz="0 0 0" rpy="0 0 0"/>
+  </joint>
+
+</robot>

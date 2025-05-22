@@ -27,9 +27,8 @@ sleep 2
 
 # Avvia la simulazione con il package customizzato
 echo "Avvio simulazione Universal Robot UR3 con gripper ed endoscopio in Gazebo..."
-roslaunch endo_moveit_config demo_gazebo.launch
-#roslaunch my_ur3_setup ur_gripper.launch world:=empty.world &
-#roslaunch ur_gazebo ur3_bringup.launch
+#roslaunch endo_moveit_config demo_gazebo.launch
+roslaunch ur_gazebo ur3_bringup.launch
 GAZEBO_PID=$!
 sleep 10
 
