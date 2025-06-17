@@ -2,47 +2,46 @@
 
 set -e
 
-# Imposta le variabili per il server X11
-export DISPLAY=${DISPLAY:-":0"}
-export QT_QPA_PLATFORM=${QT_QPA_PLATFORM:-"xcb"}
-export QT_X11_NO_MITSHM=${QT_X11_NO_MITSHM:-"1"}
+# Set the variables for the X11 server
+export DISPLAY=${DISPLAY:-":0"}  # Sets the DISPLAY environment variable to ":0" if not already set
+export QT_QPA_PLATFORM=${QT_QPA_PLATFORM:-"xcb"}  # Specifies the platform for the QPA environment
+export QT_X11_NO_MITSHM=${QT_X11_NO_MITSHM:-"1"}  # Disables MIT-SHM usage for X11 compatibility
 
-# Autorizza l'accesso al server X
+# Allow access to the X server
 if command -v xhost &> /dev/null
 then
-    xhost +local:root
+    xhost +local:root  # Adds local root access to X server if xhost is available
 fi
 
-# Sorgente ROS2 Humble
+# Source ROS2 Humble environment
 if [ -f /opt/ros/humble/setup.bash ]; then
-    source /opt/ros/humble/setup.bash
+    source /opt/ros/humble/setup.bash  # Sources the ROS2 Humble environment if setup.bash exists
 else
-    echo "Errore: File setup.bash di ROS2 Humble non trovato!"
-    exit 1
+    echo "Error: ROS2 Humble setup.bash file not found!"  # Displays an error message if setup.bash is missing
+    exit 1  # Exits the script with an error code
 fi
 
-# Sorgente del workspace ROS2
+# Source the ROS2 workspace environment
 if [ -f /workspace/ros_ur_driver/install/setup.bash ]; then
-    source /workspace/ros_ur_driver/install/setup.bash
+    source /workspace/ros_ur_driver/install/setup.bash  # Sources the workspace environment if setup.bash exists
 else
-    echo "Errore: Il workspace ROS2 non è stato costruito correttamente!"
-    exit 1
+    echo "Error: ROS2 workspace has not been built correctly!"  # Displays an error message if setup.bash is missing
+    exit 1  # Exits the script with an error code
 fi
 
-# Variabili per calibrazione e avvio driver
-ROBOT_IP=${ROBOT_IP:-"141.64.75.55"}  # Default IP del robot
-TARGET_FILENAME=${TARGET_FILENAME:-"${HOME}/my_robot_calibration.yaml"}
-UR_TYPE=${UR_TYPE:-"ur3e"}  # Specifica il tipo di robot
+# Variables for calibration and driver launch
+ROBOT_IP=${ROBOT_IP:-"141.64.75.55"}  # Default IP for the robot
+TARGET_FILENAME=${TARGET_FILENAME:-"${HOME}/my_robot_calibration.yaml"}  # Default calibration target file path
+UR_TYPE=${UR_TYPE:-"ur3e"}  # Specifies the default type of robot
 
-# Passo 1: Avvia la calibrazione
-echo "Avvio della calibrazione del robot con IP: ${ROBOT_IP}..."
-ros2 launch ur_calibration calibration_correction.launch.py robot_ip:=${ROBOT_IP} target_filename:=${TARGET_FILENAME}
+# Step 1: Start the calibration
+echo "Starting robot calibration with IP: ${ROBOT_IP}..."  # Logs the start of calibration
+ros2 launch ur_calibration calibration_correction.launch.py robot_ip:=${ROBOT_IP} target_filename:=${TARGET_FILENAME}  # Executes the calibration launch file
+echo "Calibration completed!"  # Logs the completion of calibration
 
-echo "Calibrazione completata!"
+# Step 2: Start the robot driver
+echo "Starting the driver with robot type: ${UR_TYPE} and calibration file: ${TARGET_FILENAME}..."  # Logs the driver startup
+ros2 launch ur_robot_driver ur_control.launch.py ur_type:=${UR_TYPE} robot_ip:=${ROBOT_IP} kinematics_params_file:=${TARGET_FILENAME}  # Executes the driver launch file
 
-# Passo 2: Avvia il driver del robot
-echo "Avvio del driver con tipo robot: ${UR_TYPE} e file di calibrazione: ${TARGET_FILENAME}..."
-ros2 launch ur_robot_driver ur_control.launch.py ur_type:=${UR_TYPE} robot_ip:=${ROBOT_IP} kinematics_params_file:=${TARGET_FILENAME}
-
-# Passa il controllo al comando specificato (ad esempio bash)
-exec "$@"
+# Pass control to the specified command (e.g., bash)
+exec "$@"  # Executes the provided command (or bash by default)
