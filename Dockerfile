@@ -5,6 +5,7 @@ RUN apt-get update && apt-get install -y \
     python3-colcon-common-extensions \
     python3-vcstool \
     ros-humble-desktop \
+    ros-humble-ros2controlcli \
     build-essential \
     cmake \
     ros-humble-ros-workspace \

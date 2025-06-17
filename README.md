@@ -102,3 +102,15 @@ Start the "External Control" program from the robot’s control panel.
 Wait for the terminal output:
 "Robot connected to reverse interface. Ready to receive control commands."
 Once you see this message in the terminal, the setup is complete, and the robot is ready to be controlled.
+
+## Using MoveIt!
+MoveIt! support is built into this driver.
+
+To test the driver with the example MoveIt setup:
+
+Start the driver as described above.
+Launch the MoveIt nodes using:
+```shellscript
+ros2 launch ur_moveit_config ur_moveit.launch.py ur_type:=ur5e launch_rviz:=true
+```
+This command starts the MoveIt configuration including RViz2, allowing you to plan and monitor trajectories.
