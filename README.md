@@ -43,19 +43,18 @@ This section provides a step-by-step guide to setting up the project environment
 
 Ensure you have installed:
 - **Docker:** Version 20.10 or later.
-- **Docker Compose:** If the project requires multiple containers, install the appropriate version.
 
 ### Building the Docker Image
 Docker Commands and Explanations
 1. Build the Docker Image
 ```shellscript
-docker build -t ur_driver_noetic .
+docker build -t ros2-ur3e-driver .
 ```
 
 Purpose: Creates a Docker image from the Dockerfile in the current directory.
 Explanation:
 docker build: Initiates the Docker build process.
--t ur_driver_noetic: Tags the image with the name ur_driver_noetic.
+-t ros2-ur3e-driver: Tags the image with the name ur_driver_noetic.
 .: Specifies the current directory as the build context, which contains the Dockerfile and related resources.
 
 
@@ -66,7 +65,7 @@ docker build: Initiates the Docker build process.
 xhost +local:root
 ```
 ```shellscript
-docker run -it --rm --net=host -e DISPLAY=$DISPLAY -v /tmp/.X11-unix:/tmp/.X11-unix ur_driver_noetic:latest
+docker run -it --rm --net=host ros2-ur3e-driver:latest
 ```
 
 
@@ -76,8 +75,6 @@ docker run: Command to create and start a new container.
 -it: Combines interactive mode and pseudo-TTY allocation for proper terminal interaction.
 --rm: Automatically removes the container after it stops.
 --net=host: Uses the host’s network stack, essential for direct communication with the UR3 robotic arm.
--e DISPLAY=$DISPLAY: Exports the host’s display environment variable, allowing GUI applications to display on the host.
--v /tmp/.X11-unix:/tmp/.X11-unix: Mounts the X11 socket needed for GUI display.
 ur_driver_noetic:latest: Specifies the image to use with the latest tag.
 
 
@@ -98,41 +95,10 @@ bash: The command to execute in the container, which starts a bash shell.
 
 
 
-4. Launching the ROS Driver for the UR3 Robotic Arm
-```shellscript
-roslaunch ur_robot_driver ur3_bringup.launch robot_ip:=141.64.75.55 kinematics_config:=${HOME}/ur3_calibration.yaml
-```
-
-Purpose: Launches the ROS driver to initialize the UR3 robot, establishing communication and applying calibration settings.
-Explanation:
-roslaunch: ROS command to start nodes as defined in a launch file.
-ur_robot_driver: Specifies the ROS package containing the UR3 driver.
-ur3_bringup.launch: The launch file that sets up the UR3 robot driver.
-robot_ip:=141.64.75.55: Parameter to define the IP address of the UR3 robotic arm.
-kinematics_config:=${HOME}/ur3_calibration.yaml: Sets the path to the kinematics calibration file necessary for accurate robot movements.
-
-### Additional ROS Commands
-1. Launch RViz for UR Driver
-
-```shellscript
-roslaunch ur_robot_driver example_rviz.launch
-```
-Purpose: Starts an instance of RViz configured for visualizing and interacting with the UR robot driver data.
-
-Explanation:
-
-roslaunch: Initiates the launch process for ROS nodes using the specified launch file.
-ur_robot_driver: References the ROS package related to the UR robot.
-example_rviz.launch: Launch file configured to open RViz with pre-configured settings tailored for the UR driver.
-2. Test Movement Command
-
-``` shellscript
-rosrun ur_robot_driver test_move
-```
-Purpose: Executes a test command from the ur_robot_driver package to perform movement routines, verifying the setup and connectivity with the UR robot.
-
-Explanation:
-
-rosrun: ROS command to directly run an executable from a given package.
-ur_robot_driver: Specifies the package where the test executable is located.
-test_move: The executable responsible for performing a movement test on the robot.
+4.  Driver Initialization via Entrypoint:
+In this setup, the entrypoint script automatically performs the calibration and uses the output as a parameter to launch the driver.
+Next Steps:
+Start the "External Control" program from the robot’s control panel.
+Wait for the terminal output:
+"Robot connected to reverse interface. Ready to receive control commands."
+Once you see this message in the terminal, the setup is complete, and the robot is ready to be controlled.
