@@ -1,39 +1,42 @@
 #!/bin/bash
+
 set -e
 
-# Imposta le variabili per l'accesso al display X11
+# Imposta le variabili per il server X11
 export DISPLAY=${DISPLAY:-":0"}
 export QT_QPA_PLATFORM=${QT_QPA_PLATFORM:-"xcb"}
 export QT_X11_NO_MITSHM=${QT_X11_NO_MITSHM:-"1"}
 
-# Autorizza l'accesso al server X per l'utente locale (in questo caso root)
-xhost +local:root
+# Autorizza l'accesso al server X11
+if command -v xhost &> /dev/null
+then
+    xhost +local:root
+fi
 
-# Sorgente dell'ambiente ROS e della workspace
-source /opt/ros/noetic/setup.bash
-source /catkin_ws/devel/setup.bash
+# Sorgente ROS2 Humble
+if [ -f /opt/ros/humble/setup.bash ]; then
+    source /opt/ros/humble/setup.bash
+else
+    echo "Errore: File setup.bash di ROS2 Humble non trovato!"
+    exit 1
+fi
 
-# Avvio di roscore in background
-echo "Avvio di roscore in background..."
-roscore > /dev/null 2>&1 &
-sleep 2  # Attende qualche secondo per assicurarsi che roscore sia attivo
+# Sorgente del workspace ROS2
+if [ -f /workspace/ros_ur_driver/install/setup.bash ]; then
+    source /workspace/ros_ur_driver/install/setup.bash
+else
+    echo "Errore: Il workspace ROS2 non è stato costruito correttamente!"
+    exit 1
+fi
 
-# Pulisce eventuali run_id precedenti
-rosparam delete /run_id || echo "Nessun run_id presente da eliminare"
+# Avvio della calibrazione del robot
+ROBOT_IP=${ROBOT_IP:-"141.64.75.55"}  # Default IP del robot
+TARGET_FILENAME=${TARGET_FILENAME:-"${HOME}/my_robot_calibration.yaml"}
 
-# Avvia la calibrazione in background per 10 secondi (modifica il tempo se necessario)
-echo "Avvio della calibrazione..."
-roslaunch ur_calibration calibration_correction.launch robot_ip:=141.64.75.55 target_filename:=${HOME}/ur3_calibration.yaml &
-CAL_PID=$!
-sleep 10
-echo "Terminazione della calibrazione..."
-kill $CAL_PID || true  # Termina il processo di calibrazione
+echo "Avvio della calibrazione del robot con IP: ${ROBOT_IP}..."
+ros2 launch ur_calibration calibration_correction.launch.py robot_ip:=${ROBOT_IP} target_filename:=${TARGET_FILENAME}
 
-# Avvio in background del nodo che pubblica lo stream della camera
-echo "Avvio nodo usb_cam per lo stream della camera..."
-roslaunch usb_cam usb_cam-test.launch &
-sleep 2
+echo "Calibrazione completata!"
 
 # Passa il controllo al comando specificato (es. bash)
 exec "$@"
-
