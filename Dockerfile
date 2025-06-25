@@ -1,6 +1,6 @@
 FROM osrf/ros:humble-desktop
 
-# Install general ROS2 dependencies and development tools
+# Install general ROS2 dependencies and development
 RUN apt-get update && apt-get install -y \
     python3-colcon-common-extensions \
     python3-vcstool \
@@ -27,7 +27,10 @@ RUN git clone -b humble https://github.com/UniversalRobots/Universal_Robots_ROS2
 RUN rosdep update && \
     rosdep install --ignore-src --from-paths src -y --rosdistro humble
 
-# Build the workspace
+# Copy the 'ur3_endoscope_description' directory from the host into the Docker container
+COPY ADD/ur3_endoscope_description $COLCON_WS/src/ur3_endoscope_description
+
+# Build the ROS2 workspace
 RUN /bin/bash -c "source /opt/ros/humble/setup.bash && colcon build --cmake-args -DCMAKE_BUILD_TYPE=Release"
 
 # Copy the entrypoint script from the local directory to the container
