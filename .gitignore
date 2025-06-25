@@ -1,0 +1,27 @@
+# Visual Studio
+.vs/
+*.suo
+*.user
+*.userosscache
+*.sln.docstates
+*.resharper
+*.resharper.user
+*.dotSettings
+*.dotSettings.user
+*.bak
+*.cache
+*.ncb
+*.aps
+*.pch
+*.idb
+*.pdb
+*.obj
+*.bsc
+*.sbr
+*.lib
+*.exp
+*.ilk
+*.aps
+*.vsp
+*.ipch
+*.log
