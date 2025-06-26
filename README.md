@@ -65,7 +65,7 @@ docker build: Initiates the Docker build process.
 xhost +local:root
 ```
 ```shellscript
-docker run -it --rm --net=host ros2-ur3e-driver:latest
+ docker run -it --rm --net=host -e DISPLAY=$DISPLAY -v /tmp/.X11-unix:/tmp/.X11-unix ros2-ur3:latest
 ```
 
 
@@ -104,13 +104,48 @@ Wait for the terminal output:
 Once you see this message in the terminal, the setup is complete, and the robot is ready to be controlled.
 
 ## Using MoveIt!
-MoveIt! support is built into this driver.
-
-To test the driver with the example MoveIt setup:
-
-Start the driver as described above.
-Launch the MoveIt nodes using:
-```shellscript
-ros2 launch ur_moveit_config ur_moveit.launch.py ur_type:=ur5e launch_rviz:=true
-```
-This command starts the MoveIt configuration including RViz2, allowing you to plan and monitor trajectories.
+MoveIt! support is integrated with this driver, enabling advanced robot control and motion planning within a Dockerized environment.
+### A. Initial MoveIt! Setup (First-Time Configuration)
+If you need to create or modify a MoveIt! configuration for your robot, use the MoveIt! Setup Assistant. This is typically a one-time process for a given robot configuration.
+1.  **Ensure the Driver is Running:**
+    Start your driver as previously described in this `README`.
+2.  **Access the Docker Container:**
+    Open a **new terminal** and gain shell access to your running Docker container. Replace `<container_name_or_ID>` with the actual name or ID of your Docker container.
+    ```bash
+    docker exec -it <container_name_or_ID> bash
+    ```
+3.  **Source ROS and Workspace Setup Files:**
+    Once inside the Docker container, you must source the ROS environment and your workspace setup files. This makes all ROS 2 commands and your custom packages available in the current shell session.
+    ```bash
+    source /opt/ros/humble/setup.bash
+    source /workspace/ros_ur_driver/install/setup.bash
+    ```
+4.  **Launch MoveIt! Setup Assistant:**
+    Execute the following command to start the graphical setup assistant:
+    ```bash
+    ros2 launch moveit_setup_assistant setup_assistant.launch.py
+    ```
+    This will launch the MoveIt! Setup Assistant GUI, allowing you to generate or update your robot's MoveIt! configuration files (e.g., SRDF, kinematics.yaml, etc.).
+### B. Launching the Configured MoveIt! Environment
+Once your MoveIt! configuration is set up, you can launch the configured MoveIt! environment for planning and execution.
+1.  **Ensure the Driver is Running:**
+    Start your driver as previously described in this `README`.
+2.  **Access the Docker Container:**
+    Open a **new terminal** and gain shell access to your running Docker container. Replace `<container_name_or_ID>` with the actual name or ID of your Docker container.
+    ```bash
+    docker exec -it <container_name_or_ID> bash
+    ```
+3.  **Source ROS and Workspace Setup Files:**
+    Once inside the Docker container, you must source the ROS environment and your workspace setup files. This makes all ROS 2 commands and your custom packages available in the current shell session.
+    ```bash
+    source /opt/ros/humble/setup.bash
+    source /workspace/ros_ur_driver/install/setup.bash
+    ```
+4.  **Launch MoveIt! Nodes:**
+    Now that your environment is correctly set up within the container, launch the MoveIt! configuration, including RViz2, using the following command:
+    ```bash
+    ros2 launch ur_moveit_config ur_moveit.launch.py ur_type:=ur3 launch_rviz:=true
+    ```
+    *   `ur_type:=ur5e`: Specifies the UR robot model (e.g., `ur5e`, `ur10e`, `ur3e`) for which to load the MoveIt! configuration. Adjust this if you are using a different UR model.
+    *   `launch_rviz:=true`: Launches RViz2, providing a visual interface to monitor the robot's state and interact with MoveIt!'s planning capabilities.
+This sequence of commands will correctly set up your environment and launch the MoveIt! configuration, allowing you to visualize the robot, plan motions, and monitor trajectory execution.
