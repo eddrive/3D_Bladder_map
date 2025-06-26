@@ -1,44 +1,43 @@
 <?xml version="1.0"?>
 <robot xmlns:xacro="http://www.ros.org/wiki/xacro">
 
-  <xacro:macro name="endoscope" params="parent_link xyz rpy"> <!-- Aggiunti xyz e rpy come parametri -->
-    <!-- Corpo principale dell'endoscopio -->
+  <xacro:macro name="endoscope" params="parent_link xyz rpy">
+    
+    <!-- Corpo principale dell'endoscopio (più corto e grosso) -->
     <link name="endoscope_body_link">
       <visual>
         <geometry>
-          <cylinder length="0.39" radius="0.005"/> <!-- Primo cilindro -->
+          <cylinder length="0.13" radius="0.025"/> <!-- Corpo corto e grosso -->
         </geometry>
         <material name="blue"/>
       </visual>
     </link>
 
-    <!-- Punta dell'endoscopio -->
+    <!-- Punta dell'endoscopio (stretta e lunga) -->
     <link name="endoscope_tip_link">
       <visual>
         <geometry>
-          <cylinder length="0.13" radius="0.025"/> <!-- Secondo cilindro -->
+          <cylinder length="0.39" radius="0.005"/> <!-- Punta stretta e lunga -->
         </geometry>
-        <!-- L'origine del visual all'interno del link. Mantengo come era, ma potrebbe richiedere aggiustamenti visivi. -->
-        <origin xyz="0 0 0.26" rpy="0 0 0"/>
+        <origin xyz="0 0 0.195" rpy="0 0 0"/> <!-- Offset per connettere al corpo -->
         <material name="blue"/>
       </visual>
     </link>
 
-    <!-- Joint collegando l'endoscopio al gripper -->
-    <!-- L'origine di questo joint è ora definita dai parametri xyz e rpy passati alla macro. -->
+    <!-- Joint che collega l'endoscopio al gripper -->
     <joint name="${parent_link}_endoscope_joint" type="fixed">
-      <origin xyz="${xyz}" rpy="${rpy}"/> <!-- Usa i parametri passati -->
+      <origin xyz="${xyz}" rpy="${rpy}"/>
       <parent link="${parent_link}"/>
       <child link="endoscope_body_link"/>
     </joint>
 
-    <!-- Joint collegando il corpo dell'endoscopio alla punta -->
-    <!-- Questo joint è interno all'endoscopio e non cambia. -->
+    <!-- Joint che collega il corpo alla punta -->
     <joint name="endoscope_tip_joint" type="fixed">
       <parent link="endoscope_body_link"/>
       <child link="endoscope_tip_link"/>
-      <origin xyz="0 0 0.195" rpy="0 0 0"/> <!-- Offset della punta rispetto al corpo dell'endoscopio -->
+      <origin xyz="0 0 0" rpy="0 0 0"/> <!-- Connesso più vicino alla punta -->
     </joint>
+
   </xacro:macro>
 
 </robot>

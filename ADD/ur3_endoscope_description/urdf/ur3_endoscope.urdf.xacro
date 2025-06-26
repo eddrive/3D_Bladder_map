@@ -151,7 +151,7 @@
    <!-- Posizionamento: La sua origine è definita per posizionare la fine del corpo dell'endoscopio (dove si attacca la punta) sull'origine del gripper_base_link. -->
    <!-- Rotazione: rpy="0 1.5708 0" (pitch di 90 gradi) fa sì che l'endoscopio punti in avanti lungo l'asse X del gripper. -->
    <!-- Spostamento: xyz="-0.195 0 0" sposta l'origine del link del corpo dell'endoscopio indietro di 0.195 lungo il suo asse X (che ora è l'asse Z originale ruotato), in modo che la punta (a +0.195 lungo l'asse Z originale) si trovi all'origine del gripper. -->
-   <xacro:endoscope parent_link="gripper_base_link" xyz="-0.195 0 0" rpy="0 1.5708 0"/>
+   <xacro:endoscope parent_link="gripper_base_link" xyz="-0.1025 0 0.095" rpy="0 1.5708 0"/>
 
    <!-- === ADDED GRIPPER AND ENDOSCOPE END === -->
 
