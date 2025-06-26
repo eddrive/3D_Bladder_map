@@ -61,11 +61,11 @@ echo "Starting the Universal Robots driver with robot type ${UR_TYPE}..."
 #     kinematics_params_file:=${TARGET_FILENAME} \
 
 #Start the custom description launch file (uncomment if needed)
-# ros2 launch ${DESCRIPTION_PKG} custom_ur_control.launch.py \
-#     ur_type:=${UR_TYPE} \
-#     robot_ip:=${ROBOT_IP} \
-#     kinematics_params_file:=${TARGET_FILENAME} \
-#     description_file:=${DESCRIPTION_FILE}
+ros2 launch ${DESCRIPTION_PKG} custom_ur_control.launch.py \
+    ur_type:=${UR_TYPE} \
+    robot_ip:=${ROBOT_IP} \
+    kinematics_params_file:=${TARGET_FILENAME} 
+#    description_file:=${DESCRIPTION_FILE}
 
 # Pass control to any additional commands specified at runtime
 exec "$@"

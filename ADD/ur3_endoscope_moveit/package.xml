@@ -1,0 +1,35 @@
+<?xml version="1.0"?>
+<?xml-model href="http://download.ros.org/schema/package_format3.xsd" schematypens="http://www.w3.org/2001/XMLSchema"?>
+<package format="3">
+  <name>ur3_endoscope_moveit</name>
+  <version>0.0.0</version> <!-- Inizia da 0.0.0 e aggiorna quando rilasci versioni -->
+  <description>MoveIt! configuration package for UR3 robot with an endoscope.</description>
+  <maintainer email="your_email@example.com">Your Name</maintainer> <!-- Inserisci la tua email e nome -->
+  <license>TODO</license> <!-- Sostituisci con la licenza che preferisci, es. Apache 2.0, BSD, MIT -->
+
+  <!-- Buildtool dependencies -->
+  <buildtool_depend>ament_cmake</buildtool_depend>
+
+  <!-- Runtime dependencies -->
+  <!-- Questi sono i pacchetti che la tua configurazione MoveIt! e i tuoi launch file useranno. -->
+  <!-- Sono gli stessi che trovi nel find_package in CMakeLists.txt ma in formato <depend> -->
+  <depend>moveit_ros_move_group</depend>
+  <depend>moveit_configs_utils</depend>
+  <depend>rviz2</depend>
+  <depend>xacro</depend>
+  <depend>ur_description</depend>
+  <depend>ur_moveit_config</depend>
+  <depend>launch</depend>
+  <depend>launch_ros</depend>
+  <depend>ros_environment</depend>
+  <!-- Aggiungi qui altre dipendenze specifiche che il Setup Assistant potrebbe generare,
+       o che i tuoi launch file utilizzeranno (es. ros2_control, moveit_servo, rclpy, etc.) -->
+
+  <!-- Test dependencies (if you plan to add tests) -->
+  <test_depend>ament_lint_auto</test_depend>
+  <test_depend>ament_lint_common</test_depend>
+
+  <export>
+    <build_type>ament_cmake</build_type>
+  </export>
+</package>

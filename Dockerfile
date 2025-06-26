@@ -12,6 +12,7 @@ RUN apt-get update && apt-get install -y \
     nano \
     tree \
     x11-xserver-utils \
+    ros-humble-moveit-setup-assistant \
     && apt-get clean
 
 # Create ROS2 workspace
