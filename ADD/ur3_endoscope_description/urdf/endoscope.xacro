@@ -1,8 +1,9 @@
 <?xml version="1.0"?>
+
 <robot xmlns:xacro="http://www.ros.org/wiki/xacro">
 
   <xacro:macro name="endoscope" params="parent_link xyz rpy">
-    
+
     <!-- Corpo principale dell'endoscopio (più corto e grosso) -->
     <link name="endoscope_body_link">
       <visual>
@@ -11,6 +12,11 @@
         </geometry>
         <material name="blue"/>
       </visual>
+      <collision>
+        <geometry>
+          <cylinder length="0.13" radius="0.025"/> <!-- Corpo collisione uguale a quella visiva -->
+        </geometry>
+      </collision>
     </link>
 
     <!-- Punta dell'endoscopio (stretta e lunga) -->
@@ -22,6 +28,12 @@
         <origin xyz="0 0 0.195" rpy="0 0 0"/> <!-- Offset per connettere al corpo -->
         <material name="blue"/>
       </visual>
+      <collision>
+        <geometry>
+          <cylinder length="0.39" radius="0.005"/> <!-- Corpo collisione uguale a quella visiva -->
+        </geometry>
+        <origin xyz="0 0 0.195" rpy="0 0 0"/> <!-- Stesso offset della parte visiva -->
+      </collision>
     </link>
 
     <!-- Joint che collega l'endoscopio al gripper -->

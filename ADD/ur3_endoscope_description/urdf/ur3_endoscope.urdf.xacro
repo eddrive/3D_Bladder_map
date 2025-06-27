@@ -1,15 +1,15 @@
 <?xml version="1.0"?>
-<robot xmlns:xacro="http://wiki.ros.org/xacro" name="$(arg name)">
+<robot xmlns:xacro="http://wiki.ros.org/xacro" name="ur3">
 
    <!-- robot name parameter -->
-   <xacro:arg name="name" default="ur"/>
+   <xacro:arg name="name" default="ur3"/>
 
    <!-- import main macro -->
    <xacro:include filename="$(find ur_description)/urdf/ur_macro.xacro"/>
 
    <!-- possible 'ur_type' values: ur3, ur3e, ur5, ur5e, ur7e, ur10, ur10e, ur12e, ur16e, ur15, ur20, ur30 -->
    <!-- the default value should raise an error in case this was called without defining the type -->
-   <xacro:arg name="ur_type" default="ur5x"/>
+   <xacro:arg name="ur_type" default="ur3"/>
 
    <!-- DEFINIZIONI DEI MATERIALI QUI -->
    <material name="grey">
@@ -98,7 +98,7 @@
 
    <!-- arm -->
    <xacro:ur_robot
-     name="$(arg name)"
+     name="ur3"
      tf_prefix="$(arg tf_prefix)"
      parent="world"
      joint_limits_parameters_file="$(arg joint_limit_params)"
