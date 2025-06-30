@@ -1,0 +1,27 @@
+moveit_setup_assistant_config:
+  urdf:
+    package: ur3_endoscope_description
+    relative_path: urdf/ur3_endoscope.urdf.xacro
+  srdf:
+    relative_path: config/ur3.srdf
+  package_settings:
+    author_name: Guida Edoardo
+    author_email: edoardo1.guida@mail.polimi.it
+    generated_timestamp: 1751290958
+  control_xacro:
+    command:
+      - position
+      - velocity
+    state:
+      - position
+      - velocity
+  modified_urdf:
+    xacros:
+      - control_xacro
+  control_xacro:
+    command:
+      - position
+      - velocity
+    state:
+      - position
+      - velocity

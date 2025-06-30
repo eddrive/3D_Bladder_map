@@ -30,6 +30,7 @@ RUN rosdep update && \
 
 # Copy the 'ur3_endoscope_description' directory from the host into the Docker container
 COPY ADD/ur3_endoscope_description $COLCON_WS/src/ur3_endoscope_description
+COPY ADD/ur3_endoscope_moveit_config $COLCON_WS/src/ur3_endoscope_moveit_config
 
 # Build the ROS2 workspace
 RUN /bin/bash -c "source /opt/ros/humble/setup.bash && colcon build --cmake-args -DCMAKE_BUILD_TYPE=Release"

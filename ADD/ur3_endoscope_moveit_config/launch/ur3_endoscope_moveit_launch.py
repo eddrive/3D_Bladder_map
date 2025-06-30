@@ -16,10 +16,11 @@ from launch.substitutions import (
     LaunchConfiguration,
     PathJoinSubstitution,
 )
+# Aggiungi questo import in cima al file
+from launch_ros.descriptions import ParameterValue
 
 
 def launch_setup(context, *args, **kwargs):
-
     # Initialize Arguments
     ur_type = LaunchConfiguration("ur_type")
     safety_limits = LaunchConfiguration("safety_limits")
@@ -37,7 +38,6 @@ def launch_setup(context, *args, **kwargs):
     use_sim_time = LaunchConfiguration("use_sim_time")
     launch_rviz = LaunchConfiguration("launch_rviz")
     launch_servo = LaunchConfiguration("launch_servo")
-
     joint_limit_params = PathJoinSubstitution(
         [FindPackageShare(description_package), "config", ur_type, "joint_limits.yaml"]
     )
@@ -50,7 +50,6 @@ def launch_setup(context, *args, **kwargs):
     visual_params = PathJoinSubstitution(
         [FindPackageShare(description_package), "config", ur_type, "visual_parameters.yaml"]
     )
-
     robot_description_content = Command(
         [
             PathJoinSubstitution([FindExecutable(name="xacro")]),
@@ -97,8 +96,13 @@ def launch_setup(context, *args, **kwargs):
             " ",
         ]
     )
-    robot_description = {"robot_description": robot_description_content}
-
+    # Avvolgi robot_description_content in ParameterValue
+    robot_description = {
+        "robot_description": ParameterValue(
+            robot_description_content,
+            value_type=str
+        )
+    }
     # MoveIt Configuration
     robot_description_semantic_content = Command(
         [
@@ -109,8 +113,6 @@ def launch_setup(context, *args, **kwargs):
             ),
             " ",
             "name:=",
-            # Also ur_type parameter could be used but then the planning group names in yaml
-            # configs has to be updated!
             "ur",
             " ",
             "prefix:=",
@@ -118,23 +120,25 @@ def launch_setup(context, *args, **kwargs):
             " ",
         ]
     )
-    robot_description_semantic = {"robot_description_semantic": robot_description_semantic_content}
-
+    # Avvolgi robot_description_semantic_content in ParameterValue
+    robot_description_semantic = {
+        "robot_description_semantic": ParameterValue(
+            robot_description_semantic_content,
+            value_type=str
+        )
+    }
     publish_robot_description_semantic = {
         "publish_robot_description_semantic": _publish_robot_description_semantic
     }
-
     robot_description_kinematics = PathJoinSubstitution(
         [FindPackageShare(moveit_config_package), "config", "kinematics.yaml"]
     )
-
     robot_description_planning = {
         "robot_description_planning": load_yaml(
             str(moveit_config_package.perform(context)),
             os.path.join("config", str(moveit_joint_limits_file.perform(context))),
         )
     }
-
     # Planning Configuration
     ompl_planning_pipeline_config = {
         "move_group": {
@@ -145,7 +149,6 @@ def launch_setup(context, *args, **kwargs):
     }
     ompl_planning_yaml = load_yaml("ur_moveit_config", "config/ompl_planning.yaml")
     ompl_planning_pipeline_config["move_group"].update(ompl_planning_yaml)
-
     # Trajectory Execution Configuration
     controllers_yaml = load_yaml("ur_moveit_config", "config/controllers.yaml")
     # the scaled_joint_trajectory_controller does not work on fake hardware
@@ -153,12 +156,10 @@ def launch_setup(context, *args, **kwargs):
     if change_controllers == "true":
         controllers_yaml["scaled_joint_trajectory_controller"]["default"] = False
         controllers_yaml["joint_trajectory_controller"]["default"] = True
-
     moveit_controllers = {
         "moveit_simple_controller_manager": controllers_yaml,
         "moveit_controller_manager": "moveit_simple_controller_manager/MoveItSimpleControllerManager",
     }
-
     trajectory_execution = {
         "moveit_manage_controllers": False,
         "trajectory_execution.allowed_execution_duration_scaling": 1.2,
@@ -167,19 +168,16 @@ def launch_setup(context, *args, **kwargs):
         # Execution time monitoring can be incompatible with the scaled JTC
         "trajectory_execution.execution_duration_monitoring": False,
     }
-
     planning_scene_monitor_parameters = {
         "publish_planning_scene": True,
         "publish_geometry_updates": True,
         "publish_state_updates": True,
         "publish_transforms_updates": True,
     }
-
     warehouse_ros_config = {
         "warehouse_plugin": "warehouse_ros_sqlite::DatabaseConnection",
         "warehouse_host": warehouse_sqlite_path,
     }
-
     # Start the actual move_group node/action server
     move_group_node = Node(
         package="moveit_ros_move_group",
@@ -199,7 +197,6 @@ def launch_setup(context, *args, **kwargs):
             warehouse_ros_config,
         ],
     )
-
     # rviz with moveit configuration
     rviz_config_file = PathJoinSubstitution(
         [FindPackageShare(moveit_config_package), "rviz", "view_robot.rviz"]
@@ -223,7 +220,6 @@ def launch_setup(context, *args, **kwargs):
             },
         ],
     )
-
     # Servo node for realtime control
     servo_yaml = load_yaml("ur_moveit_config", "config/ur_servo.yaml")
     servo_params = {"moveit_servo": servo_yaml}
@@ -238,9 +234,7 @@ def launch_setup(context, *args, **kwargs):
         ],
         output="screen",
     )
-
     nodes_to_start = [move_group_node, rviz_node, servo_node]
-
     return nodes_to_start
 
 
@@ -251,6 +245,7 @@ def generate_launch_description():
     declared_arguments.append(
         DeclareLaunchArgument(
             "ur_type",
+            default_value="ur3",
             description="Type/series of used UR robot.",
             choices=[
                 "ur3",
@@ -315,7 +310,7 @@ def generate_launch_description():
     declared_arguments.append(
         DeclareLaunchArgument(
             "moveit_config_package",
-            default_value="ur_moveit_config",
+            default_value="ur3_endoscope_moveit_config",
             description="MoveIt config package with robot SRDF/XACRO files. Usually the argument "
             "is not set, it enables use of a custom moveit config.",
         )
@@ -323,7 +318,7 @@ def generate_launch_description():
     declared_arguments.append(
         DeclareLaunchArgument(
             "moveit_config_file",
-            default_value="ur.srdf.xacro",
+            default_value="ur3.srdf.xacro",
             description="MoveIt SRDF/XACRO description file with the robot.",
         )
     )
