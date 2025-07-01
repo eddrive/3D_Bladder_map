@@ -65,17 +65,26 @@ docker build: Initiates the Docker build process.
 xhost +local:root
 ```
 ```shellscript
- docker run -it --rm --net=host -e DISPLAY=$DISPLAY -v /tmp/.X11-unix:/tmp/.X11-unix ros2-ur3:latest
+ docker run -it --rm --net=host \
+  -e DISPLAY=$DISPLAY \
+  -v /tmp/.X11-unix:/tmp/.X11-unix \
+  --device=/dev/video2:/dev/video2 \
+  --device=/dev/video3:/dev/video3 \
+  ros2-ur3:latest
 ```
 
 
 Purpose: Starts a container from the built image with settings that support interactive use and GUI applications.
 Explanation:
 docker run: Command to create and start a new container.
--it: Combines interactive mode and pseudo-TTY allocation for proper terminal interaction.
---rm: Automatically removes the container after it stops.
---net=host: Uses the host’s network stack, essential for direct communication with the UR3 robotic arm.
-ur_driver_noetic:latest: Specifies the image to use with the latest tag.
+-it: Runs the container in interactive mode and allocates a pseudo-TTY for terminal interaction.
+--rm: Automatically removes the container once it stops.
+--net=host: Uses the host's network stack, essential for direct communication with the UR3 robotic arm.
+-e DISPLAY=$DISPLAY: Sets the DISPLAY environment variable in the container to enable GUI applications.
+-v /tmp/.X11-unix:/tmp/.X11-unix: Mounts the host’s X11 socket into the container, allowing GUI applications to display.
+--device=/dev/video2:/dev/video2: Makes the host’s video2 device available inside the container (e.g., a camera).
+--device=/dev/video3:/dev/video3: Makes the host’s video3 device available inside the container (e.g., a second camera).
+ros2-ur3:latest: Specifies the Docker image to use.
 
 
 
@@ -96,7 +105,7 @@ bash: The command to execute in the container, which starts a bash shell.
 
 
 4.  Driver Initialization via Entrypoint:
-In this setup, the entrypoint script automatically performs the calibration and uses the output as a parameter to launch the driver.
+In this setup, the entrypoint script automatically performs the calibration and uses the output as a parameter to launch the driver. Additionally, it publishes the camera image streams as ROS2 topics for vision-based applications.
 Next Steps:
 Start the "External Control" program from the robot’s control panel.
 Wait for the terminal output:
@@ -149,3 +158,9 @@ Once your MoveIt! configuration is set up, you can launch the configured MoveIt!
     *   `ur_type:=ur5e`: Specifies the UR robot model (e.g., `ur5e`, `ur10e`, `ur3e`) for which to load the MoveIt! configuration. Adjust this if you are using a different UR model.
     *   `launch_rviz:=true`: Launches RViz2, providing a visual interface to monitor the robot's state and interact with MoveIt!'s planning capabilities.
 This sequence of commands will correctly set up your environment and launch the MoveIt! configuration, allowing you to visualize the robot, plan motions, and monitor trajectory execution.
+
+## Endoscope Setup
+The endoscope must be connected to `/dev/video2` on the host system. Once the container is running, you can visualize the endoscope feed using:
+```shell
+ros2 run rqt_image_view rqt_image_view
+```

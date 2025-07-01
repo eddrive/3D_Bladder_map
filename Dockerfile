@@ -12,11 +12,14 @@ RUN apt-get update && apt-get install -y \
     nano \
     tree \
     x11-xserver-utils \
-    ros-humble-moveit-setup-assistant \  
+    ros-humble-moveit-setup-assistant \
+    ros-humble-v4l2-camera \
+    ros-humble-image-tools \
     && apt-get clean
 
 # Create ROS2 workspace
 ENV COLCON_WS=/workspace/ros_ur_driver
+
 RUN mkdir -p $COLCON_WS/src
 
 # Clone the Universal Robots ROS2 Driver repository
@@ -28,14 +31,14 @@ RUN git clone -b humble https://github.com/UniversalRobots/Universal_Robots_ROS2
 RUN rosdep update && \
     rosdep install --ignore-src --from-paths src -y --rosdistro humble
 
-# Copy the 'ur3_endoscope_description' directory from the host into the Docker container
+# Copy the UR3 endoscope description files
 COPY ADD/ur3_endoscope_description $COLCON_WS/src/ur3_endoscope_description
 COPY ADD/ur3_endoscope_moveit_config $COLCON_WS/src/ur3_endoscope_moveit_config
 
 # Build the ROS2 workspace
 RUN /bin/bash -c "source /opt/ros/humble/setup.bash && colcon build --cmake-args -DCMAKE_BUILD_TYPE=Release"
 
-# Copy the entrypoint script from the local directory to the container
+# Copy the entrypoint script
 COPY entrypoint.sh /usr/local/bin/entrypoint.sh
 RUN chmod +x /usr/local/bin/entrypoint.sh
 
