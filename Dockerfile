@@ -34,6 +34,7 @@ RUN rosdep update && \
 # Copy the UR3 endoscope description files
 COPY ADD/ur3_endoscope_description $COLCON_WS/src/ur3_endoscope_description
 COPY ADD/ur3_endoscope_moveit_config $COLCON_WS/src/ur3_endoscope_moveit_config
+COPY ADD/endoscope_calibration.yaml /root/endoscope_calibration.yaml
 
 # Build the ROS2 workspace
 RUN /bin/bash -c "source /opt/ros/humble/setup.bash && colcon build --cmake-args -DCMAKE_BUILD_TYPE=Release"
