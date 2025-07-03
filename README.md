@@ -160,7 +160,27 @@ Once your MoveIt! configuration is set up, you can launch the configured MoveIt!
 This sequence of commands will correctly set up your environment and launch the MoveIt! configuration, allowing you to visualize the robot, plan motions, and monitor trajectory execution.
 
 ## Endoscope Setup
-The endoscope must be connected to `/dev/video2` on the host system. Once the container is running, you can visualize the endoscope feed using:
+The endoscope must be connected to `/dev/video2` on the host system. 
+### Camera Calibration and Image Publishing
+The **entrypoint script automatically provides the endoscope publishing node with the YAML calibration file**, ensuring that camera intrinsic parameters and distortion coefficients are properly loaded for accurate image processing.
+By default, the system publishes the **uncorrected (raw) endoscope image** to the topic `endoscope/image_raw`. This raw image contains lens distortion and may not be suitable for precision applications.
+### Viewing the Raw Endoscope Feed
+To visualize the raw endoscope feed, use:
 ```shell
 ros2 run rqt_image_view rqt_image_view
 ```
+Then select the topic endoscope/image_raw from the dropdown menu.
+
+Image Rectification (Distortion Correction)
+If you need the corrected/rectified image (with lens distortion removed), you can launch the image rectification node:
+```shell
+ros2 run image_proc rectify_node --ros-args \
+    --remap image:=endoscope/image_raw \
+    --remap camera_info:=endoscope/camera_info \
+    --remap image_rect:=endoscope/image_rect
+```
+This command:
+
+Subscribes to the raw image (endoscope/image_raw) and camera calibration info (endoscope/camera_info)
+Applies distortion correction using the calibration parameters
+Publishes the corrected image to endoscope/image_rect
