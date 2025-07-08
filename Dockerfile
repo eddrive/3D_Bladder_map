@@ -15,6 +15,7 @@ RUN apt-get update && apt-get install -y \
     ros-humble-moveit-setup-assistant \
     ros-humble-v4l2-camera \
     ros-humble-image-tools \
+    ros-humble-tf2-ros \ 
     && apt-get clean
 
 # Create ROS2 workspace

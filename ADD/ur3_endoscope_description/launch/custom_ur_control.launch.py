@@ -302,6 +302,23 @@ def launch_setup(context, *args, **kwargs):
         arguments=["-d", rviz_config_file],
     )
 
+    static_tf_publisher_camera= Node(
+        package='tf2_ros',
+        executable='static_transform_publisher',
+        name='camera_pose_publisher',
+        output='screen',
+        arguments=[
+                    '-0.00534',  # x in metri
+                    '0.37727',   # y in metri
+                    '0.21681',   # z in metri
+                    '0',         # roll (nessuna rotazione specificata)
+                    '0',         # pitch (nessuna rotazione specificata)
+                    '0',         # yaw (nessuna rotazione specificata)
+                    'wrist_3_link',  # frame genitore
+                    'camera_pose'    # frame figlio
+        ]
+    )
+
     # Spawn controllers
     def controller_spawner(controllers, active=True):
         inactive_flags = ["--inactive"] if not active else []
@@ -358,6 +375,7 @@ def launch_setup(context, *args, **kwargs):
         urscript_interface,
         robot_state_publisher_node,
         rviz_node,
+        static_tf_publisher_camera,
     ] + controller_spawners
 
     return nodes_to_start
