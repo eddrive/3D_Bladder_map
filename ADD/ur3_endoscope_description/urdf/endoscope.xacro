@@ -47,7 +47,7 @@
     <joint name="endoscope_tip_joint" type="fixed">
       <parent link="endoscope_body_link"/>
       <child link="endoscope_tip_link"/>
-      <origin xyz="0 0 0" rpy="0 0 0"/> <!-- Connesso più vicino alla punta -->
+      <origin xyz="0 0 0.065" rpy="0 0 0"/> <!-- Connesso più vicino alla punta -->
     </joint>
 
   </xacro:macro>

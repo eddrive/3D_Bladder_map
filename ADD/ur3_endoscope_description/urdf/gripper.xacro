@@ -8,13 +8,13 @@
     <link name="gripper_base_link">
       <visual>
         <geometry>
-          <box size="0.075 0.075 0.18"/> <!-- Dimensioni generiche del gripper -->
+          <box size="0.075 0.075 0.24"/> <!-- Dimensioni generiche del gripper -->
         </geometry>
         <material name="grey"/>
       </visual>
       <collision>
         <geometry>
-          <box size="0.075 0.075 0.18"/> <!-- Geometria di collisione uguale a quella visiva -->
+          <box size="0.075 0.075 0.24"/> <!-- Geometria di collisione uguale a quella visiva -->
         </geometry>
       </collision>
     </link>
