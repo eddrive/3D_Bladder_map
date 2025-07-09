@@ -16,9 +16,10 @@ from launch.substitutions import (
     NotSubstitution,
     PathJoinSubstitution,
 )
-
-
 def launch_setup(context, *args, **kwargs):
+
+    # --- Launch Argument Declarations ---
+    # Define parameters like robot type, IP address, safety limits, simulation flag, etc.
     # Initialize Arguments
     ur_type = LaunchConfiguration("ur_type")
     robot_ip = LaunchConfiguration("robot_ip")
@@ -193,6 +194,9 @@ def launch_setup(context, *args, **kwargs):
         ]
     )
 
+    # --- Node Definitions ---
+    # Define all ROS 2 nodes to start for the UR robot system.
+    # Examples: UR control node, state publisher, dashboard client, visualization (like RViz).
     control_node = Node(
         package="controller_manager",
         executable="ros2_control_node",
@@ -302,20 +306,22 @@ def launch_setup(context, *args, **kwargs):
         arguments=["-d", rviz_config_file],
     )
 
+    # This node publishes the static transform from the robot's wrist (wrist_3_link) to the endoscope tip (camera_pose).
+    # The transformation parameters (translation and rotation) were obtained through calibration using the UR interface.
     static_tf_publisher_camera= Node(
         package='tf2_ros',
         executable='static_transform_publisher',
         name='camera_pose_publisher',
         output='screen',
         arguments=[
-                    '-0.00534',  # x in metri
-                    '0.37727',   # y in metri
-                    '0.21681',   # z in metri
-                    '0',         # roll (nessuna rotazione specificata)
-                    '0',         # pitch (nessuna rotazione specificata)
-                    '0',         # yaw (nessuna rotazione specificata)
-                    'wrist_3_link',  # frame genitore
-                    'camera_pose'    # frame figlio
+                    '-0.00534',  
+                    '0.37727',   
+                    '0.21681',   
+                    '0',         
+                    '0',         
+                    '0',          
+                    'wrist_3_link',
+                    'camera_pose'  
         ]
     )
 
@@ -380,7 +386,8 @@ def launch_setup(context, *args, **kwargs):
 
     return nodes_to_start
 
-
+# --- Launch Assembly and Return ---
+# Combine all arguments and nodes into the launch description.
 def generate_launch_description():
     declared_arguments = []
     # UR specific arguments

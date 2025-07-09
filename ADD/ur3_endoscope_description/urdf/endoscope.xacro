@@ -2,52 +2,54 @@
 
 <robot xmlns:xacro="http://www.ros.org/wiki/xacro">
 
+
+<!-- This section defines the endoscope model (body and tip), as used in the robot system. -->
   <xacro:macro name="endoscope" params="parent_link xyz rpy">
 
-    <!-- Corpo principale dell'endoscopio (più corto e grosso) -->
+    <!-- Main body of the endoscope (shorter and thicker) -->
     <link name="endoscope_body_link">
       <visual>
         <geometry>
-          <cylinder length="0.13" radius="0.025"/> <!-- Corpo corto e grosso -->
+          <cylinder length="0.13" radius="0.025"/> <!-- Short and thick body -->
         </geometry>
         <material name="blue"/>
       </visual>
       <collision>
         <geometry>
-          <cylinder length="0.13" radius="0.025"/> <!-- Corpo collisione uguale a quella visiva -->
+          <cylinder length="0.13" radius="0.025"/> <!-- Collision body same as visual -->
         </geometry>
       </collision>
     </link>
 
-    <!-- Punta dell'endoscopio (stretta e lunga) -->
+    <!-- Tip of the endoscope (thin and long) -->
     <link name="endoscope_tip_link">
       <visual>
         <geometry>
-          <cylinder length="0.39" radius="0.005"/> <!-- Punta stretta e lunga -->
+          <cylinder length="0.39" radius="0.005"/> <!-- Thin and long tip -->
         </geometry>
-        <origin xyz="0 0 0.195" rpy="0 0 0"/> <!-- Offset per connettere al corpo -->
+        <origin xyz="0 0 0.195" rpy="0 0 0"/> <!-- Offset to connect to the body -->
         <material name="blue"/>
       </visual>
       <collision>
         <geometry>
-          <cylinder length="0.39" radius="0.005"/> <!-- Corpo collisione uguale a quella visiva -->
+          <cylinder length="0.39" radius="0.005"/> <!-- Collision body same as visual -->
         </geometry>
-        <origin xyz="0 0 0.195" rpy="0 0 0"/> <!-- Stesso offset della parte visiva -->
+        <origin xyz="0 0 0.195" rpy="0 0 0"/> <!-- Same offset as the visual part -->
       </collision>
     </link>
 
-    <!-- Joint che collega l'endoscopio al gripper -->
+    <!-- Joint connecting the endoscope to the gripper -->
     <joint name="${parent_link}_endoscope_joint" type="fixed">
       <origin xyz="${xyz}" rpy="${rpy}"/>
       <parent link="${parent_link}"/>
       <child link="endoscope_body_link"/>
     </joint>
 
-    <!-- Joint che collega il corpo alla punta -->
+    <!-- Joint connecting the body to the tip -->
     <joint name="endoscope_tip_joint" type="fixed">
       <parent link="endoscope_body_link"/>
       <child link="endoscope_tip_link"/>
-      <origin xyz="0 0 0.065" rpy="0 0 0"/> <!-- Connesso più vicino alla punta -->
+      <origin xyz="0 0 0.065" rpy="0 0 0"/> <!-- Connected tip to tip -->
     </joint>
 
   </xacro:macro>

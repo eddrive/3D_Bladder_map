@@ -2,25 +2,29 @@
 
 <robot xmlns:xacro="http://www.ros.org/wiki/xacro">
 
+  <!--
+    This macro defines a simple gripper model to be attached to the robot.
+  -->
+
   <xacro:macro name="gripper" params="parent_link">
 
-    <!-- Gripper link -->
+    <!-- Gripper body -->
     <link name="gripper_base_link">
       <visual>
         <geometry>
-          <box size="0.075 0.075 0.24"/> <!-- Dimensioni generiche del gripper -->
+          <box size="0.075 0.075 0.24"/> 
         </geometry>
         <material name="grey"/>
       </visual>
       <collision>
         <geometry>
-          <box size="0.075 0.075 0.24"/> <!-- Geometria di collisione uguale a quella visiva -->
+          <box size="0.075 0.075 0.24"/> <!-- Collision geometry same as visual -->
         </geometry>
       </collision>
     </link>
 
-    <!-- Joint collegando il gripper al link parent (wrist_3_link) -->
-    <!-- L'origine xyz="0 0 0" rpy="0 0 0" posiziona il gripper rispetto al parent link. -->
+    <!-- Joint connecting the gripper to the parent link (wrist_3_link) -->
+    <!-- The origin xyz="0 0 0.09" rpy="0 0 90deg" positions the gripper relative to the parent link. -->
     <joint name="${parent_link}_gripper_joint" type="fixed">
       <origin xyz="0 0 0.09" rpy="0 0 1.5708"/>
       <parent link="${parent_link}"/>

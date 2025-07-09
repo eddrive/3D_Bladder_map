@@ -11,12 +11,12 @@
    <!-- the default value should raise an error in case this was called without defining the type -->
    <xacro:arg name="ur_type" default="ur3"/>
 
-   <!-- DEFINIZIONI DEI MATERIALI QUI -->
+   <!-- Definition of materials -->
    <material name="grey">
-     <color rgba="0.7 0.7 0.7 1.0"/> <!-- Grigio medio opaco -->
+     <color rgba="0.7 0.7 0.7 1.0"/> 
    </material>
    <material name="blue">
-     <color rgba="0.0 0.0 0.8 1.0"/> <!-- Blu scuro opaco -->
+     <color rgba="0.0 0.0 0.8 1.0"/> 
    </material>
 
    <!-- parameters -->
@@ -139,21 +139,20 @@
 
    <!-- === ADDED GRIPPER AND ENDOSCOPE START === -->
 
-   <!-- Inclusione dei file delle macro per gripper ed endoscopio -->
+   <!-- Inclusion of macro files for gripper and endoscope -->
    <xacro:include filename="$(find ur3_endoscope_description)/urdf/gripper.xacro"/>
    <xacro:include filename="$(find ur3_endoscope_description)/urdf/endoscope.xacro"/>
 
-   <!-- Gripper: attaccato al wrist_3_link del braccio robotico -->
-   <!-- La macro gripper.xacro definirà l'origine del gripper rispetto al suo parent_link. -->
-   <xacro:gripper parent_link="wrist_3_link"/>
+   <!-- Gripper: attached to the wrist_3_link of the robotic arm -->
+   <!-- The gripper.xacro macro will define the gripper's origin relative to its parent_link. -->
+  <xacro:gripper parent_link="wrist_3_link"/>
 
-   <!-- Endoscopio: attaccato al gripper_base_link -->
-   <!-- Posizionamento: La sua origine è definita per posizionare la fine del corpo dell'endoscopio (dove si attacca la punta) sull'origine del gripper_base_link. -->
-   <!-- Rotazione: rpy="0 1.5708 0" (pitch di 90 gradi) fa sì che l'endoscopio punti in avanti lungo l'asse X del gripper. -->
-   <!-- Spostamento: xyz="-0.195 0 0" sposta l'origine del link del corpo dell'endoscopio indietro di 0.195 lungo il suo asse X (che ora è l'asse Z originale ruotato), in modo che la punta (a +0.195 lungo l'asse Z originale) si trovi all'origine del gripper. -->
-   <xacro:endoscope parent_link="gripper_base_link" xyz="-0.1025 0 0.12" rpy="0 1.5708 0"/>
+  <!-- Endoscope: Attached to gripper_base_link -->
+  <!-- Positioning: Its origin is defined to position the end of the endoscope body (where the tip attaches) at the origin of the gripper_base_link. -->
+  <!-- Rotation: rpy="0 1.5708 0" (90-degree pitch) causes the endoscope to point forward along the gripper's X-axis. -->
+  <!-- Displacement: xyz="-0.1025 0 12" moves the endoscope body's link origin back 0.1025 along its X-axis (which is now the original rotated Z-axis), so that the tip (at +0.1025 along the original Z-axis) is at the gripper's origin. -->
+  <xacro:endoscope parent_link="gripper_base_link" xyz="-0.1025 0 0.12" rpy="0 1.5708 0"/>
 
-   <!-- === ADDED GRIPPER AND ENDOSCOPE END === -->
 
    <xacro:if value="$(arg sim_gazebo)">
     <!-- Gazebo plugins -->

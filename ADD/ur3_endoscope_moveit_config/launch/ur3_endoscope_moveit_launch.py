@@ -16,7 +16,6 @@ from launch.substitutions import (
     LaunchConfiguration,
     PathJoinSubstitution,
 )
-# Aggiungi questo import in cima al file
 from launch_ros.descriptions import ParameterValue
 
 
@@ -96,7 +95,7 @@ def launch_setup(context, *args, **kwargs):
             " ",
         ]
     )
-    # Avvolgi robot_description_content in ParameterValue
+    # Add robot_description_content in ParameterValue
     robot_description = {
         "robot_description": ParameterValue(
             robot_description_content,
@@ -120,7 +119,7 @@ def launch_setup(context, *args, **kwargs):
             " ",
         ]
     )
-    # Avvolgi robot_description_semantic_content in ParameterValue
+    # Add robot_description_semantic_content in ParameterValue
     robot_description_semantic = {
         "robot_description_semantic": ParameterValue(
             robot_description_semantic_content,
@@ -151,7 +150,7 @@ def launch_setup(context, *args, **kwargs):
     ompl_planning_pipeline_config["move_group"].update(ompl_planning_yaml)
     # Trajectory Execution Configuration
     controllers_yaml = load_yaml("ur_moveit_config", "config/controllers.yaml")
-    # the scaled_joint_trajectory_controller does not work on fake hardware
+    # The scaled_joint_trajectory_controller does not work on fake hardware
     change_controllers = context.perform_substitution(use_sim_time)
     if change_controllers == "true":
         controllers_yaml["scaled_joint_trajectory_controller"]["default"] = False
