@@ -19,7 +19,7 @@ RUN apt-get update && apt-get install -y \
     && apt-get clean
 
 # Create ROS2 workspace
-ENV COLCON_WS=/workspace/ros_ur_driver
+ENV COLCON_WS=/workspace/bladder_mapper
 
 RUN mkdir -p $COLCON_WS/src
 

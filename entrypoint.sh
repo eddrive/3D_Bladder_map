@@ -22,9 +22,9 @@ else
 fi
 
 # Source the workspace environment
-if [ -f /workspace/ros_ur_driver/install/setup.bash ]; then
+if [ -f /workspace/bladder_mapper/install/setup.bash ]; then
     echo "Sourcing custom workspace environment..."
-    source /workspace/ros_ur_driver/install/setup.bash
+    source /workspace/bladder_mapper/install/setup.bash
 else
     echo "Error: ROS2 workspace has not been built correctly!"
     exit 1

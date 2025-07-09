@@ -127,7 +127,7 @@ If you need to create or modify a MoveIt! configuration for your robot, use the 
     Once inside the Docker container, you must source the ROS environment and your workspace setup files. This makes all ROS 2 commands and your custom packages available in the current shell session.
     ```bash
     source /opt/ros/humble/setup.bash
-    source /workspace/ros_ur_driver/install/setup.bash
+    source /workspace/bladder_mapper/install/setup.bash
     ```
 4.  **Launch MoveIt! Setup Assistant:**
     Execute the following command to start the graphical setup assistant:
@@ -148,7 +148,7 @@ Once your MoveIt! configuration is set up, you can launch the configured MoveIt!
     Once inside the Docker container, you must source the ROS environment and your workspace setup files. This makes all ROS 2 commands and your custom packages available in the current shell session.
     ```bash
     source /opt/ros/humble/setup.bash
-    source /workspace/ros_ur_driver/install/setup.bash
+    source /workspace/bladder_mapper/install/setup.bash
     ```
 4.  **Launch MoveIt! Nodes:**
     Now that your environment is correctly set up within the container, launch the MoveIt! configuration, including RViz2, using the following command:
