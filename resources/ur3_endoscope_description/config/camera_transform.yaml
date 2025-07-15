@@ -1,0 +1,12 @@
+camera_transform:
+  # Static transform from wrist_3_link to camera_pose
+  translation:
+    x: -0.00534
+    y: 0.37727
+    z: 0.21681
+  rotation:
+    x: 0.0
+    y: 0.0
+    z: -0.5236  # 30 degrees in radians to point to where the camera sees
+  parent_frame: "wrist_3_link"
+  child_frame: "camera_pose"

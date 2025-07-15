@@ -1,6 +1,8 @@
 #
 # Author: Edoardo Guida, 2025 Berlin
 
+import yaml
+
 from launch_ros.actions import Node
 from launch_ros.parameter_descriptions import ParameterFile, ParameterValue
 from launch_ros.substitutions import FindPackageShare
@@ -16,6 +18,40 @@ from launch.substitutions import (
     NotSubstitution,
     PathJoinSubstitution,
 )
+
+def get_camera_transform_args(camera_config_file):
+    """
+    Reads transform parameters from the YAML file and converts them 
+    into the arguments required by static_transform_publisher (using Euler angles).
+    """
+    with open(camera_config_file, 'r') as f:
+        config = yaml.safe_load(f)
+    
+    # Extract values from the YAML file
+    transform = config['camera_transform']
+    
+    # Translation
+    tx = transform['translation']['x']
+    ty = transform['translation']['y'] 
+    tz = transform['translation']['z']
+    
+    # Rotation (Euler angles)
+    roll = transform['rotation']['x']
+    pitch = transform['rotation']['y']
+    yaw = transform['rotation']['z']
+    
+    # Frame names
+    parent_frame = transform['parent_frame']
+    child_frame = transform['child_frame']
+    
+    # Return arguments in the format: x y z roll pitch yaw parent_frame child_frame
+    return [
+        str(tx), str(ty), str(tz),        # translation x, y, z
+        str(roll), str(pitch), str(yaw),  # rotation roll, pitch, yaw (Euler)
+        parent_frame,                     # parent frame
+        child_frame                       # child frame
+    ]
+
 def launch_setup(context, *args, **kwargs):
 
     # --- Launch Argument Declarations ---
@@ -55,6 +91,7 @@ def launch_setup(context, *args, **kwargs):
     reverse_port = LaunchConfiguration("reverse_port")
     script_sender_port = LaunchConfiguration("script_sender_port")
     trajectory_port = LaunchConfiguration("trajectory_port")
+    camera_config_file = LaunchConfiguration("camera_config_file")
 
     joint_limit_params = PathJoinSubstitution(
         [FindPackageShare(description_package), "config", ur_type, "joint_limits.yaml"]
@@ -308,21 +345,12 @@ def launch_setup(context, *args, **kwargs):
 
     # This node publishes the static transform from the robot's wrist (wrist_3_link) to the endoscope tip (camera_pose).
     # The transformation parameters (translation and rotation) were obtained through calibration using the UR interface.
-    static_tf_publisher_camera= Node(
+    static_tf_publisher_camera = Node(
         package='tf2_ros',
         executable='static_transform_publisher',
         name='camera_pose_publisher',
         output='screen',
-        arguments=[
-                    '-0.00534',  
-                    '0.37727',   
-                    '0.21681',   
-                    '0',          
-                    '0',         
-                    '-0.5236',          #30 gradi in radianti per puntare a dove vede la camera.
-                    'wrist_3_link',
-                    'camera_pose'  
-        ]
+        arguments=get_camera_transform_args(camera_config_file)
     )
 
     # Spawn controllers
@@ -656,4 +684,17 @@ def generate_launch_description():
             description="Port that will be opened for trajectory control.",
         )
     )
+    declared_arguments.append(
+        DeclareLaunchArgument(
+            "camera_config_file",
+            default_value=PathJoinSubstitution(
+                [
+                    FindPackageShare(LaunchConfiguration("ur3_endoscope_description")),
+                    "config",
+                    "camera_transform.yaml",
+                ]
+            ),
+            description="YAML file with the camera transform configuration.",
+    )
+)
     return LaunchDescription(declared_arguments + [OpaqueFunction(function=launch_setup)])

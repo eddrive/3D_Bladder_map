@@ -11,7 +11,7 @@ find_package(xacro REQUIRED)
 find_package(tf2_ros REQUIRED)
 
 install(
-  DIRECTORY urdf launch meshes
+  DIRECTORY urdf launch meshes config
   DESTINATION share/${PROJECT_NAME}
   FILES_MATCHING PATTERN "*"
 )
