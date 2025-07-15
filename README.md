@@ -184,3 +184,24 @@ This command:
 Subscribes to the raw image (endoscope/image_raw) and camera calibration info (endoscope/camera_info)
 Applies distortion correction using the calibration parameters
 Publishes the corrected image to endoscope/image_rect
+
+## Launching the 3D Mapping System
+### 1. Ensure Prerequisites are Running
+Make sure the following systems are operational before starting the mapping:
+- UR3 robot driver (see [Docker Usage Guide](#docker-usage-guide))
+- Endoscope camera publishing to `/endoscope/image_raw`
+- Robot transformations available in TF tree
+### 2. Access the Docker Container
+Open a new terminal and gain shell access to your running Docker container:
+```bash
+docker exec -it <container_name_or_ID> bash
+```
+### 3. Source ROS and Workspace Setup Files
+```bash
+source /opt/ros/humble/setup.bash
+source /workspace/bladder_mapper/install/setup.bash
+```
+###4. Launch the 3D Mapping System
+```bash
+ros2 launch bladder_rtabmapper rtabmap_external_odom.launch.py
+```
