@@ -4,7 +4,7 @@
   <name>ur3_endoscope_description</name>
   <version>0.0.1</version>
   <description>URDF description for UR3 with endoscope setup</description>
-  <maintainer email="your_email@example.com">Your Name</maintainer>
+  <maintainer email="edoardo1.guida@mail.polimi.it">Guida Edoardo</maintainer>
   <license>TODO</license>
 
   <buildtool_depend>ament_cmake</buildtool_depend>

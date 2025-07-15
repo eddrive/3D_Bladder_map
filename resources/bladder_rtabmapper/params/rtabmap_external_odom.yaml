@@ -1,0 +1,15 @@
+rtabmap:
+  frame_id: "base_link"               
+  subscribe_rgb: true
+  subscribe_depth: false
+  approx_sync: false
+  odom_topic: "odom"
+  Map/PublishOccupancyGrid: true
+  Mem/ReduceGraph: true
+  Reg/Force3DoF: true
+  # Altri parametri tuning utili:
+  # Mem/NotLinkedNodesKept: false
+  # RGBD/Grid/FromDepth: false
+  # RGBD/NeighborLinkRefining: true
+  # Mem/IncrementalMemory: true
+  # Altri parametri secondo necessità...
