@@ -61,15 +61,7 @@ def generate_launch_description():
             name='rtabmap',
             output='screen',
             parameters=[
-                LaunchConfiguration('params_file'),
-                {
-                    'visual_odometry': False,
-                    'use_sim_time': False,
-                    'subscribe_rgb': True,
-                    'subscribe_depth': False,
-                    'approx_sync': False,
-                    'frame_id': LaunchConfiguration('frame_id')
-                }
+                LaunchConfiguration('params_file')
             ],
             remappings=[
                 ('rgb/image', LaunchConfiguration('rgb_topic')),

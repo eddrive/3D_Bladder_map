@@ -1,8 +1,61 @@
 rtabmap:
   ros__parameters:
+    # === FRAME CONFIGURATION ===
     frame_id: "base_link"
     odom_frame_id: "odom"
     map_frame_id: "map"
     camera_frame_id: "camera"
     optical_frame_id: "camera"
-    approx_sync: true
+    
+    # # === SUBSCRIPTION SETTINGS (solo RGB + odometria esterna) ===
+    subscribe_rgb: true
+    subscribe_depth: false      
+    subscribe_stereo: false     
+    subscribe_rgbd: false     
+    subscribe_odom: true       
+    subscribe_odom_info: false  
+    subscribe_scan: false        
+    subscribe_scan_cloud: false 
+
+    # # === ODOMETRIA ESTERNA (FONDAMENTALE) ===
+    Vis/EstimationType: "0"         # 0 = disabilita odometria visiva (usa esterna)
+    odom_sensor_sync: true        # Sincronizza con odometria esterna
+    
+    # # === MAPPATURA 3D (CORRETTA) ===
+    Grid/3D: "true"                 # ABILITA mappatura 3D
+    RGBD/CreateOccupancyGrid: "true" # Crea griglia di occupancy
+    Grid/CellSize: "0.05"           # Risoluzione griglia (5cm)
+    Grid/RangeMax: "5.0"            # Raggio massimo mapping
+    Grid/MaxObstacleHeight: "2.0"   # Altezza max ostacoli (2m)
+    Grid/MaxGroundHeight: "0.2"     # Soglia terreno superiore (20cm)
+    Grid/MinGroundHeight: "-0.2"    # Soglia terreno inferiore (-20cm)
+    
+    # # === VISUAL FEATURES (per RGB monoculare) ===
+    Vis/MaxFeatures: "400"          # Numero features per frame
+    Vis/MinInliers: "15"            # Minimo inliers per match
+    Vis/MaxDepth: "4.0"             # Profondità max (stimata)
+    Vis/MinDepth: "0.1"             # Profondità min
+    Kp/DetectorStrategy: "0"        # SURF features
+    
+    # # === LOOP CLOSURE ===
+    Mem/NotLinkedNodesKept: "false" # Rimuovi nodi non collegati
+    Mem/STMSize: "30"               # Dimensione memoria breve termine
+    RGBD/NeighborLinkRefining: "true" # Raffina link tra nodi vicini
+    
+    # # === PERFORMANCE ===
+    approx_sync: true             # Sincronizzazione approssimativa
+    queue_size: 10                # Dimensione buffer
+    publish_tf: true             # Pubblica trasformazioni
+    tf_delay: 0.05                # Ritardo TF
+    
+    # # === OPTIMIZER (3D SLAM) ===
+    Optimizer/Strategy: "1"         # g2o optimizer
+    Optimizer/Iterations: "20"      # Iterazioni ottimizzazione
+    RGBD/OptimizeFromGraphEnd: "false" # Ottimizza da inizio grafo
+    
+    # # === MAPPING SPECIFICO ===
+    Rtabmap/DetectionRate: "1.0"    # Frequenza detection
+    Rtabmap/TimeThr: "0"            # No limite tempo
+    Rtabmap/MemoryThr: "0"          # No limite memoria
+    RGBD/LinearUpdate: "0.1"        # Aggiorna ogni 10cm movimento
+    RGBD/AngularUpdate: "0.1"       # Aggiorna ogni 0.1 rad rotazione
