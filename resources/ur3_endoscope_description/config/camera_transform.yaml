@@ -8,5 +8,5 @@ camera_transform:
     x: 3.1416
     y: 0.0
     z: 2.0944  # 30 degrees in radians to point to where the camera sees
-  parent_frame: "tool0"
+  parent_frame: "wrist_3_link"
   child_frame: "camera"

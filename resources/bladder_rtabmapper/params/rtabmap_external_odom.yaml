@@ -35,7 +35,9 @@ rtabmap:
     Vis/MinInliers: "15"            # Minimo inliers per match
     Vis/MaxDepth: "4.0"             # Profondità max (stimata)
     Vis/MinDepth: "0.1"             # Profondità min
-    Kp/DetectorStrategy: "0"        # SURF features
+    Kp/DetectorStrategy: "1"        # SIFT features
+    Vis/FeatureType: "1"  
+    Mem/UseOdomFeatures: "false"
     
     # # === LOOP CLOSURE ===
     Mem/NotLinkedNodesKept: "false" # Rimuovi nodi non collegati

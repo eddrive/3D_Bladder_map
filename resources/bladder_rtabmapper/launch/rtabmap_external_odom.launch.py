@@ -51,7 +51,15 @@ def generate_launch_description():
             package='tf2_ros',
             executable='static_transform_publisher',
             name='odom_to_base_static',
-            arguments=['0', '0', '0', '0', '0', '0', 'odom', 'world'],
+            arguments=['0', '0', '0', '0', '0', '0', 'odom', 'base_link'],
+            output='screen'
+        ),
+
+        Node(
+            package='tf2_ros',
+            executable='static_transform_publisher',
+            name='wrold_to_base_link',
+            arguments=['-0.40536543', '-0.27077756', '0.57302308', '-1.5742222336', '-0.01634937177', '-1.5724505499', 'world', 'base_link'],
             output='screen'
         ),
 
