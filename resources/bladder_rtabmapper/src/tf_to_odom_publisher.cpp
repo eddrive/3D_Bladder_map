@@ -7,7 +7,7 @@ TFtoOdomPublisher::TFtoOdomPublisher()
 {
     
     this->declare_parameter<std::string>("parent_frame", "base_link");
-    this->declare_parameter<std::string>("child_frame", "camera_pose");
+    this->declare_parameter<std::string>("child_frame", "camera");
     this->get_parameter("parent_frame", parent_frame_);
     this->get_parameter("child_frame", child_frame_);
 

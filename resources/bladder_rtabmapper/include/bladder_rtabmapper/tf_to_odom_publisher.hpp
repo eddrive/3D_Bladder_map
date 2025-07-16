@@ -20,5 +20,5 @@ private:
     tf2_ros::TransformListener tf_listener_;
 
     std::string parent_frame_;   // "base_link"
-    std::string child_frame_;    // "camera_pose"
+    std::string child_frame_;    // "camera"
 };

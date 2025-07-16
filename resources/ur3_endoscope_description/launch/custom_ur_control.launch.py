@@ -1,8 +1,9 @@
 #
 # Author: Edoardo Guida, 2025 Berlin
 
+import os
 import yaml
-
+from ament_index_python.packages import get_package_share_directory
 from launch_ros.actions import Node
 from launch_ros.parameter_descriptions import ParameterFile, ParameterValue
 from launch_ros.substitutions import FindPackageShare
@@ -19,12 +20,12 @@ from launch.substitutions import (
     PathJoinSubstitution,
 )
 
-def get_camera_transform_args(camera_config_file):
+def get_camera_transform_args(camera_config_file_path):
     """
     Reads transform parameters from the YAML file and converts them 
     into the arguments required by static_transform_publisher (using Euler angles).
     """
-    with open(camera_config_file, 'r') as f:
+    with open(camera_config_file_path, 'r') as f: 
         config = yaml.safe_load(f)
     
     # Extract values from the YAML file
@@ -92,6 +93,8 @@ def launch_setup(context, *args, **kwargs):
     script_sender_port = LaunchConfiguration("script_sender_port")
     trajectory_port = LaunchConfiguration("trajectory_port")
     camera_config_file = LaunchConfiguration("camera_config_file")
+
+    camera_config_file_path = camera_config_file.perform(context)
 
     joint_limit_params = PathJoinSubstitution(
         [FindPackageShare(description_package), "config", ur_type, "joint_limits.yaml"]
@@ -233,7 +236,6 @@ def launch_setup(context, *args, **kwargs):
 
     # --- Node Definitions ---
     # Define all ROS 2 nodes to start for the UR robot system.
-    # Examples: UR control node, state publisher, dashboard client, visualization (like RViz).
     control_node = Node(
         package="controller_manager",
         executable="ros2_control_node",
@@ -343,14 +345,12 @@ def launch_setup(context, *args, **kwargs):
         arguments=["-d", rviz_config_file],
     )
 
-    # This node publishes the static transform from the robot's wrist (wrist_3_link) to the endoscope tip (camera_pose).
-    # The transformation parameters (translation and rotation) were obtained through calibration using the UR interface.
     static_tf_publisher_camera = Node(
         package='tf2_ros',
         executable='static_transform_publisher',
-        name='camera_pose_publisher',
+        name='camera_publisher',
         output='screen',
-        arguments=get_camera_transform_args(camera_config_file)
+        arguments=get_camera_transform_args(camera_config_file_path) 
     )
 
     # Spawn controllers
@@ -415,9 +415,9 @@ def launch_setup(context, *args, **kwargs):
     return nodes_to_start
 
 # --- Launch Assembly and Return ---
-# Combine all arguments and nodes into the launch description.
 def generate_launch_description():
     declared_arguments = []
+    
     # UR specific arguments
     declared_arguments.append(
         DeclareLaunchArgument(
@@ -684,17 +684,18 @@ def generate_launch_description():
             description="Port that will be opened for trajectory control.",
         )
     )
+
+    camera_config_path = os.path.join(
+        get_package_share_directory("ur3_endoscope_description"),
+        "config",
+        "camera_transform.yaml"
+    )
     declared_arguments.append(
         DeclareLaunchArgument(
             "camera_config_file",
-            default_value=PathJoinSubstitution(
-                [
-                    FindPackageShare(LaunchConfiguration("ur3_endoscope_description")),
-                    "config",
-                    "camera_transform.yaml",
-                ]
-            ),
+            default_value=camera_config_path,
             description="YAML file with the camera transform configuration.",
+        )
     )
-)
+
     return LaunchDescription(declared_arguments + [OpaqueFunction(function=launch_setup)])

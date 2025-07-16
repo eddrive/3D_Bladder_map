@@ -1,6 +1,6 @@
 image_width: 1280
 image_height: 720
-camera_name: usb_video
+camera_name: usb_video:_usb_video
 camera_matrix:
   rows: 3
   cols: 3
@@ -9,7 +9,7 @@ distortion_model: plumb_bob
 distortion_coefficients:
   rows: 1
   cols: 5
-  data: [-0.42868288  0.27608564 -0.00341884  0.00346239 -0.12161529]
+  data: [-0.42868288,  0.27608564, -0.00341884,  0.00346239, -0.12161529]
 rectification_matrix:
   rows: 3
   cols: 3
