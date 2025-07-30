@@ -353,6 +353,30 @@ def launch_setup(context, *args, **kwargs):
         arguments=get_camera_transform_args(camera_config_file_path) 
     )
 
+    # static_tf_map_odom = Node(
+    #     package='tf2_ros',
+    #     executable='static_transform_publisher',
+    #     name='map_to_odom_static',
+    #     arguments=['0', '0', '0', '0', '0', '0', 'world', 'map'],
+    #     output='screen'
+    # )
+    
+    # static_tf_odom_baselink = Node(
+    #     package='tf2_ros',
+    #     executable='static_transform_publisher',
+    #     name='odom_to_base_static',
+    #     arguments=['0', '0', '0', '0', '0', '0', 'map', 'odom'],
+    #     output='screen'
+    # )
+
+    static_tf_world_baselink = Node(
+        package='tf2_ros',
+        executable='static_transform_publisher',
+        name='wrold_to_base_link',
+        arguments=['-0.40536543', '-0.27077756', '0.57302308', '-1.5742222336', '-0.01634937177', '-1.5724505499', 'world', 'base_link'],
+        output='screen'
+    )
+
     # Spawn controllers
     def controller_spawner(controllers, active=True):
         inactive_flags = ["--inactive"] if not active else []
@@ -410,6 +434,9 @@ def launch_setup(context, *args, **kwargs):
         robot_state_publisher_node,
         rviz_node,
         static_tf_publisher_camera,
+        # static_tf_map_odom, 
+        # static_tf_odom_baselink,
+        static_tf_world_baselink,
     ] + controller_spawners
 
     return nodes_to_start

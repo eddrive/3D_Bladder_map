@@ -37,31 +37,6 @@ def generate_launch_description():
         DeclareLaunchArgument('child_frame',
             default_value='camera',
             description='TF child frame (for odom publisher)'),
-        # 1. Frame map statico (punto di inizio mappatura)
-        Node(
-            package='tf2_ros',
-            executable='static_transform_publisher',
-            name='map_to_odom_static',
-            arguments=['0', '0', '0', '0', '0', '0', 'map', 'odom'],
-            output='screen'
-        ),
-        
-        # 2. Frame odom -> base_link (radice del manipolatore)
-        Node(
-            package='tf2_ros',
-            executable='static_transform_publisher',
-            name='odom_to_base_static',
-            arguments=['0', '0', '0', '0', '0', '0', 'odom', 'base_link'],
-            output='screen'
-        ),
-
-        Node(
-            package='tf2_ros',
-            executable='static_transform_publisher',
-            name='wrold_to_base_link',
-            arguments=['-0.40536543', '-0.27077756', '0.57302308', '-1.5742222336', '-0.01634937177', '-1.5724505499', 'world', 'base_link'],
-            output='screen'
-        ),
 
         Node(
             package='rtabmap_slam',

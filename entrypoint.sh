@@ -32,7 +32,7 @@ fi
 
 # Check for required packages
 echo "Checking for installed packages..."
-required_packages=("ur_robot_driver" "ur_calibration" "ur3_endoscope_description" "bladder_rtabmapper")
+required_packages=("ur_robot_driver" "ur_calibration" "ur3_endoscope_description" "bladder_rtabmapper" "midas_depth_ros")
 for pkg in "${required_packages[@]}"; do
     if ros2 pkg list 2>/dev/null | grep -q "^${pkg}$"; then
         echo "✓ Package '$pkg' found"

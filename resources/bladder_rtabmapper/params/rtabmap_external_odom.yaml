@@ -2,14 +2,14 @@ rtabmap:
   ros__parameters:
     # === FRAME CONFIGURATION ===
     frame_id: "base_link"
-    odom_frame_id: "odom"
-    map_frame_id: "map"
+    odom_frame_id: "base_link"
+    map_frame_id: "world"
     camera_frame_id: "camera"
     optical_frame_id: "camera"
     
     # # === SUBSCRIPTION SETTINGS (solo RGB + odometria esterna) ===
     subscribe_rgb: true
-    subscribe_depth: false      
+    subscribe_depth: true      
     subscribe_stereo: false     
     subscribe_rgbd: false     
     subscribe_odom: true       
@@ -18,7 +18,7 @@ rtabmap:
     subscribe_scan_cloud: false 
 
     # # === ODOMETRIA ESTERNA (FONDAMENTALE) ===
-    Vis/EstimationType: "0"         # 0 = disabilita odometria visiva (usa esterna)
+    Vis/EstimationType: "1"         # 0 = disabilita odometria visiva (usa esterna)
     odom_sensor_sync: true        # Sincronizza con odometria esterna
     
     # # === MAPPATURA 3D (CORRETTA) ===
