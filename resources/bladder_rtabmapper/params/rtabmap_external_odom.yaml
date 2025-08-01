@@ -1,63 +1,115 @@
 rtabmap:
   ros__parameters:
-    # === FRAME CONFIGURATION ===
-    frame_id: "base_link"
-    odom_frame_id: "base_link"
-    map_frame_id: "world"
-    camera_frame_id: "camera"
-    optical_frame_id: "camera"
-    
-    # # === SUBSCRIPTION SETTINGS (solo RGB + odometria esterna) ===
-    subscribe_rgb: true
-    subscribe_depth: true      
-    subscribe_stereo: false     
-    subscribe_rgbd: false     
-    subscribe_odom: true       
-    subscribe_odom_info: false  
-    subscribe_scan: false        
-    subscribe_scan_cloud: false 
 
-    # # === ODOMETRIA ESTERNA (FONDAMENTALE) ===
-    Vis/EstimationType: "1"         # 0 = disabilita odometria visiva (usa esterna)
-    odom_sensor_sync: true        # Sincronizza con odometria esterna
+    # === FRAME CONFIGURATION ===
+    frame_id: "base_link"            # The main robot base frame (as reference for all transforms)
+    odom_frame_id: "base_link"       # The frame used for odometry data
+    map_frame_id: "world"            # The frame for the global map
+    camera_frame_id: "camera"        # Frame ID for the camera
+    optical_frame_id: "camera"       # Frame ID to associate with optical data
+
+    # === SUBSCRIPTION SETTINGS ===
+    subscribe_rgb: true              # Enable RGB image input (required for RGB-D SLAM)
+    subscribe_depth: true            # Enable depth image input
+    subscribe_stereo: false          # Disable stereo image input (not needed with MiDaS)
+    subscribe_rgbd: false            # Disable RGB-D composite message input
+    subscribe_odom: true             # Enable odometry input (typically from external source)
+    subscribe_odom_info: false       # Disable odometry info topic
+    subscribe_scan: false            # Disable scan input (for LIDAR-less setups)
+    subscribe_scan_cloud: false      # Disable 3D scan cloud input
+
+    # === SYNCHRONIZATION SETTINGS ===
+    approx_sync: true                # Use approximate time policy to tolerate delays and depth estimation lag
+    queue_size: 30                   # Increase synchronization buffer for better tolerance to delays
+    rgbd_sync: true                  # Synchronize RGB and depth in an RGBDImage, helps for depth estimation pipelines
+
+    # === ODOMETRY SETTINGS ===
+    Vis/EstimationType: "1"          # 1 = Use external odometry only (recommended for MiDaS SLAM)
+    odom_sensor_sync: true           # Synchronize externally provided odometry with incoming images
+
+    # === DEPTH ENGINEERING (FOR MiDaS OUTPUT) ===
+    RGBD/CreateOccupancyGrid: "true" # Generate 3D occupancy grid
+    # === DEPTH SETTINGS FOR BLADDER ENDOSCOPY ===
+    Vis/MaxDepth: "2.0"              # Bladders are small cavities, 2m is more realistic
+    Vis/MinDepth: "0.05"             # Endoscopes can get very close to tissue
+    RGBD/MaxDepth: "2.0"             # Consistent with max depth
+    RGBD/OptimizeMaxError: "0.1"     # Tighter tolerance for small-scale anatomy
+
+    # === 3D MAPPING GRID SETTINGS ===
+    # === HIGH-RESOLUTION GRID FOR ANATOMICAL DETAILS ===
+    Grid/CellSize: "0.02"            # 2cm resolution for better anatomical detail
+    Grid/RangeMax: "1.5"             # Shorter range for bladder cavity
+    Grid/MaxObstacleHeight: "0.5"    # Much lower for bladder walls
+    Grid/MaxGroundHeight: "0.05"     # Minimal ground variation in bladder
+    Grid/MinGroundHeight: "-0.05"    # Minimal ground variation
+    Grid/NoiseFilteringRadius: "0.2" # Filter isolated noisy voxels
+    Grid/NoiseFilteringMinNeighbors: "5" # Min neighbors to keep a grid cell
+
+
+    # === FEATURE DETECTION FOR ENDOSCOPIC IMAGERY ===
+    Vis/MaxFeatures: "800"           # More features needed due to similar tissue textures
+    Vis/MinInliers: "8"              # Lower threshold due to limited feature variety
+    Vis/FeatureType: "6"             # ORB features work better with endoscopic textures
+    Kp/DetectorStrategy: "6"         # ORB detector strategy
+    Vis/CorNNType: "1"               # Use more robust nearest neighbor matching
+    Vis/CorGuessWinSize: "40"        # Larger search window for tissue correlation
+
+    # === ROBUSTNESS ADJUSTMENTS FOR ESTIMATED DEPTH ===
+    RGBD/ProximityBySpace: "false"       # Disable spatial proximity graph-based loop closure
+    RGBD/ProximityMaxGraphDepth: "0"     # Do not consider max graph depth for proximity
+    RGBD/ProximityPathMaxNeighbors: "1"  # Limit path neighbor detection
+
+    # === OUTLIER REJECTION AND REFINEMENT ===
+    Vis/RefineIterations: "3"            # More iterations to refine outliers
+    RGBD/NeighborLinkRefining: "true"    # Refine links between neighbor nodes
+    RGBD/LocalRadius: "5"            # Smaller local radius for confined space
+
+    # === LOOP CLOSURE STRATEGY ===
+    Mem/NotLinkedNodesKept: "false"      # Remove non-linked nodes to conserve memory/increase consistency
+    Mem/STMSize: "20"                    # Short-term memory size (fewer nodes due to higher uncertainty)
+    Rtabmap/LoopThr: "0.15"              # Higher loop closure threshold for more confidence
+    Rgbd/LoopClosureReextractFeatures: "true" # Reextract features for better loop closure
+
+    # === PERFORMANCE AND UPDATE POLICY ===
+    Rtabmap/DetectionRate: "0.5"         # Lower detection rate for slower, more robust processing
+    RGBD/LinearUpdate: "0.2"             # Update map every 20 cm
+    RGBD/AngularUpdate: "0.2"            # Update for every 0.2 radians of rotation
+
+    # === GRAPH OPTIMIZER ===
+    Optimizer/Strategy: "1"              # g2o optimizer
+    Optimizer/Iterations: "30"           # More iterations for convergence in complex environments
+    Optimizer/Robust: "true"             # Enable robust kernel for optimization
+    RGBD/OptimizeFromGraphEnd: "false"   # Don't optimize from the end of the graph
+
+    # === MEMORY MANAGEMENT ===
+    Rtabmap/TimeThr: "0"                 # No time-based memory limit
+    Rtabmap/MemoryThr: "0"               # No hard memory threshold
+    Mem/UseOdomFeatures: "false"         # Don't store additional odometry features
+
+    # === TRANSFORM PUBLISHING ===
+    publish_tf: true                     # Publish the TF tree
+    tf_delay: 0.1                        # Small delay to account for depth processing lag
+
+    # === NOISE AND FILTERS FOR DEPTH ESTIMATION ===
+    Grid/DepthDecimation: "2"        # No depth decimation to preserve medical detail
+    RGBD/ScanMatchingIdsSavedInLinks: "true" # Save more info in graph links
+    Vis/DepthAsMask: "false"             # Do not use depth as a binary mask
+
+    # === EXPERIMENTAL PARAMETERS FOR MiDaS ===
+    RGBD/ProximityByTime: "true"         # Use timing for proximity detection
+    Mem/ImagePreDecimation: "2"          # Pre-downsample images for performance
+    Mem/ImagePostDecimation: "2"         # Post-downsample for experimental smoothing
+
+    # === ENDOSCOPIC LIGHTING COMPENSATION ===
+    Vis/CorType: "1"                 # Use normalized cross correlation for varying lighting
+    RGBD/ProximityMaxGraphDepth: "5" # Limited graph depth for small cavity
+    Rtabmap/LoopThr: "0.25"         # Higher threshold due to similar tissue appearance
+
+    # === MEDICAL PROCEDURE MEMORY SETTINGS ===
+    Mem/STMSize: "30"                # Larger STM for better tissue tracking
+    Rtabmap/DetectionRate: "1.0"     # Higher detection rate for medical accuracy
+    RGBD/LinearUpdate: "0.05"        # Update every 5cm for detailed medical mapping
+    RGBD/AngularUpdate: "0.1"        # More frequent angular updates
+
     
-    # # === MAPPATURA 3D (CORRETTA) ===
-    Grid/3D: "true"                 # ABILITA mappatura 3D
-    RGBD/CreateOccupancyGrid: "true" # Crea griglia di occupancy
-    Grid/CellSize: "0.05"           # Risoluzione griglia (5cm)
-    Grid/RangeMax: "5.0"            # Raggio massimo mapping
-    Grid/MaxObstacleHeight: "2.0"   # Altezza max ostacoli (2m)
-    Grid/MaxGroundHeight: "0.2"     # Soglia terreno superiore (20cm)
-    Grid/MinGroundHeight: "-0.2"    # Soglia terreno inferiore (-20cm)
     
-    # # === VISUAL FEATURES (per RGB monoculare) ===
-    Vis/MaxFeatures: "400"          # Numero features per frame
-    Vis/MinInliers: "15"            # Minimo inliers per match
-    Vis/MaxDepth: "4.0"             # Profondità max (stimata)
-    Vis/MinDepth: "0.1"             # Profondità min
-    Kp/DetectorStrategy: "1"        # SIFT features
-    Vis/FeatureType: "1"  
-    Mem/UseOdomFeatures: "false"
-    
-    # # === LOOP CLOSURE ===
-    Mem/NotLinkedNodesKept: "false" # Rimuovi nodi non collegati
-    Mem/STMSize: "30"               # Dimensione memoria breve termine
-    RGBD/NeighborLinkRefining: "true" # Raffina link tra nodi vicini
-    
-    # # === PERFORMANCE ===
-    approx_sync: true             # Sincronizzazione approssimativa
-    queue_size: 10                # Dimensione buffer
-    publish_tf: true             # Pubblica trasformazioni
-    tf_delay: 0.05                # Ritardo TF
-    
-    # # === OPTIMIZER (3D SLAM) ===
-    Optimizer/Strategy: "1"         # g2o optimizer
-    Optimizer/Iterations: "20"      # Iterazioni ottimizzazione
-    RGBD/OptimizeFromGraphEnd: "false" # Ottimizza da inizio grafo
-    
-    # # === MAPPING SPECIFICO ===
-    Rtabmap/DetectionRate: "1.0"    # Frequenza detection
-    Rtabmap/TimeThr: "0"            # No limite tempo
-    Rtabmap/MemoryThr: "0"          # No limite memoria
-    RGBD/LinearUpdate: "0.1"        # Aggiorna ogni 10cm movimento
-    RGBD/AngularUpdate: "0.1"       # Aggiorna ogni 0.1 rad rotazione
