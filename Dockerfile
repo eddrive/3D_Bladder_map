@@ -21,16 +21,27 @@ RUN apt-get update && apt-get install -y \
     ros-humble-rtabmap-ros \
     ros-humble-rtabmap-msgs \
     graphviz \
+    wget \
+    curl \
     && apt-get clean
 
 # Install pip and Python dependencies
 RUN apt-get update && apt-get install -y python3-pip git libgl1 libglib2.0-0
-RUN pip install torch torchvision opencv-python
+
+# Install PyTorch with CUDA support for RTX 3070
+RUN pip install torch torchvision torchaudio --index-url https://download.pytorch.org/whl/cu121
+
+# Install all Python dependencies for MiDaS in one go
+RUN pip install opencv-python timm einops matplotlib pillow "numpy<2"
 
 # Clone MiDaS repository
-RUN git clone https://github.com/isl-org/MiDaS.git /midas \
-    && mkdir -p /midas/weights \
-    && curl -L -o /midas/weights/dpt_hybrid-midas-501f0c75.pt https://github.com/isl-org/MiDaS/releases/download/v3_1/dpt_hybrid-midas-501f0c75.pt
+RUN git clone https://github.com/isl-org/MiDaS.git /midas
+WORKDIR /midas
+
+# Pre-download MiDaS models during build (usa python3!)
+RUN python3 -c "import torch; torch.hub.load('intel-isl/MiDaS', 'DPT_Hybrid', pretrained=True, trust_repo=True)" || echo "DPT_Hybrid download failed, will retry at runtime"
+RUN python3 -c "import torch; torch.hub.load('intel-isl/MiDaS', 'DPT_Large', pretrained=True, trust_repo=True)" || echo "DPT_Large download failed, will retry at runtime"
+RUN python3 -c "import torch; torch.hub.load('intel-isl/MiDaS', 'MiDaS_small', pretrained=True, trust_repo=True)" || echo "MiDaS_small download failed, will retry at runtime"
 
 # Create ROS2 workspace
 ENV COLCON_WS=/workspace/bladder_mapper
@@ -52,6 +63,9 @@ COPY resources/endoscope_calibration.yaml /root/endoscope_calibration.yaml
 COPY resources/bladder_rtabmapper $COLCON_WS/src/bladder_rtabmapper
 COPY resources/midas_depth_ros $COLCON_WS/src/midas_depth_ros
 
+# Set environment variables
+ENV MIDAS_PATH=/midas
+ENV PYTHONPATH="/midas"
 
 # Build the ROS2 workspace
 RUN /bin/bash -c "source /opt/ros/humble/setup.bash && colcon build --cmake-args -DCMAKE_BUILD_TYPE=Release"
