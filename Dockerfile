@@ -15,12 +15,18 @@ RUN apt-get update && apt-get install -y \
     ros-humble-moveit-setup-assistant \
     ros-humble-v4l2-camera \
     ros-humble-image-tools \
-    ros-humble-tf2-ros \ 
+    ros-humble-tf2-ros \
+    ros-humble-tf2-tools \
+    ros-humble-rqt-tf-tree \
+    ros-humble-rtabmap-ros \
+    ros-humble-rtabmap-msgs \
+    graphviz \
+    wget \
+    curl \
     && apt-get clean
 
 # Create ROS2 workspace
 ENV COLCON_WS=/workspace/bladder_mapper
-
 RUN mkdir -p $COLCON_WS/src
 
 # Clone the Universal Robots ROS2 Driver repository
