@@ -48,7 +48,7 @@ Ensure you have installed:
 Docker Commands and Explanations
 1. Build the Docker Image
 ```shellscript
-docker build -t ros2-ur3e-driver .
+docker build -t ros2-ur3 .
 ```
 
 Purpose: Creates a Docker image from the Dockerfile in the current directory.
