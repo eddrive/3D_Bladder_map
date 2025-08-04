@@ -98,7 +98,7 @@ Purpose: Opens an interactive bash shell within the running Docker container.
 Explanation:
 docker exec: Runs a command inside a running container.
 -it: Ensures the session is interactive, allowing direct terminal input.
-$container name$: Identifies the container by name or container ID, you can just pres tab and is filled automatically.
+$container name$: Identifies the container by name or container ID, you can just pres tab and is filled automatically otherwise run docker ps.
 bash: The command to execute in the container, which starts a bash shell.
 
 
@@ -153,7 +153,7 @@ Once your MoveIt! configuration is set up, you can launch the configured MoveIt!
 4.  **Launch MoveIt! Nodes:**
     Now that your environment is correctly set up within the container, launch the MoveIt! configuration, including RViz2, using the following command:
     ```bash
-    ros2 launch ur_moveit_config ur_moveit.launch.py ur_type:=ur3 launch_rviz:=true
+    ros2 launch ur3_endoscope_moveit_config ur3_endoscope_moveit_launch.py ur_type:=ur3 launch_rviz:=true
     ```
     *   `ur_type:=ur5e`: Specifies the UR robot model (e.g., `ur5e`, `ur10e`, `ur3e`) for which to load the MoveIt! configuration. Adjust this if you are using a different UR model.
     *   `launch_rviz:=true`: Launches RViz2, providing a visual interface to monitor the robot's state and interact with MoveIt!'s planning capabilities.
