@@ -217,6 +217,8 @@ class MidasDepthNode(Node):
             
             # Convert to numpy
             depth = depth_tensor.squeeze().cpu().numpy()
+
+            depth = depth.astype(np.float32)
             
             # Post-process for bladder mapping
             depth = self.postprocess_depth(depth, cv_image.shape)
@@ -255,7 +257,12 @@ class MidasDepthNode(Node):
         """Main callback for synchronized image and camera info"""
         try:
             # Convert ROS image to OpenCV
-            cv_image = self.bridge.imgmsg_to_cv2(image_msg, "bgr8")
+            
+            cv_image = self.bridge.imgmsg_to_cv2(image_msg, image_msg.encoding)
+
+            if cv_image is None:
+                self.get_logger().error("OpenCV image conversion returned None! Check encoding and input data!")
+                return
             
             # Estimate depth
             depth_array = self.estimate_depth(cv_image)
