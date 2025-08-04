@@ -35,7 +35,7 @@ def generate_launch_description():
             description='Odometry topic'),
             
         DeclareLaunchArgument('frame_id',
-            default_value='base_link',
+            default_value='camera',
             description='Fixed frame id for RTAB-Map'),
             
         DeclareLaunchArgument('parent_frame',
