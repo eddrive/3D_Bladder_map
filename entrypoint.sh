@@ -33,6 +33,7 @@ fi
 # Check for required packages
 echo "Checking for installed packages..."
 required_packages=("ur_robot_driver" "ur_calibration" "ur3_endoscope_description" "bladder_rtabmapper" "midas_depth_ros")
+
 for pkg in "${required_packages[@]}"; do
     if ros2 pkg list 2>/dev/null | grep -q "^${pkg}$"; then
         echo "✓ Package '$pkg' found"
@@ -59,6 +60,7 @@ ros2 launch ur_calibration calibration_correction.launch.py \
 echo "Calibration completed successfully!"
 
 # Step 2: Start the endoscope driver
+echo "Starting endoscope camera driver..."
 ros2 run v4l2_camera v4l2_camera_node --ros-args \
     -p video_device:="/dev/video2" \
     -p image_size:="[1280, 720]" \
@@ -72,7 +74,20 @@ ros2 run v4l2_camera v4l2_camera_node --ros-args \
     -r image_raw:="endoscope/image_raw" \
     -r camera_info:="endoscope/camera_info" &
 
-# Step 3: Start the robot driver
+# Wait for camera to initialize
+echo "Waiting for camera initialization..."
+sleep 3
+
+# Step 3: Start MiDaS depth estimation node
+echo "Starting MiDaS depth estimation..."
+ros2 launch midas_depth_ros midas_launch.py &
+
+# Wait for MiDaS to initialize
+echo "Waiting for MiDaS initialization..."
+sleep 5
+
+# Step 4: Start the robot driver
+echo "Starting robot driver..."
 ros2 launch ${DESCRIPTION_PKG} custom_ur_control.launch.py \
     ur_type:=${UR_TYPE} \
     robot_ip:=${ROBOT_IP} \
