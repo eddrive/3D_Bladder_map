@@ -2,7 +2,7 @@ rtabmap:
   ros__parameters:
     # === FRAME CONFIGURATION ===
     frame_id: "camera"
-    odom_frame_id: "camera"
+    odom_frame_id: "base_link"
     map_frame_id: "world"
     camera_frame_id: "camera"
     optical_frame_id: "camera"
