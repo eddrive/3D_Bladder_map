@@ -306,7 +306,7 @@ def launch_setup(context, *args, **kwargs):
         arguments=["-d", rviz_config_file],
     )
 
-    # This node publishes the static transform from the robot's wrist (wrist_3_link) to the endoscope tip (camera_pose).
+    # This node publishes the static transform from the robot's wrist (wrist_3_link) to the endoscope tip (camera).
     # The transformation parameters (translation and rotation) were obtained through calibration using the UR interface.
     static_tf_publisher_camera= Node(
         package='tf2_ros',
@@ -321,7 +321,7 @@ def launch_setup(context, *args, **kwargs):
                     '0',         
                     '-0.5236',          #30 gradi in radianti per puntare a dove vede la camera.
                     'wrist_3_link',
-                    'camera_pose'  
+                    'camera'  
         ]
     )
 

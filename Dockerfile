@@ -16,6 +16,13 @@ RUN apt-get update && apt-get install -y \
     ros-humble-v4l2-camera \
     ros-humble-image-tools \
     ros-humble-tf2-ros \ 
+    libopencv-dev \
+    libpcl-dev \
+    ros-humble-pcl-conversions \
+    ros-humble-pcl-msgs \
+    ros-humble-cv-bridge \
+    ros-humble-image-transport \
+    ros-humble-tf2-geometry-msgs \
     && apt-get clean
 
 # Create ROS2 workspace
@@ -36,6 +43,7 @@ RUN rosdep update && \
 COPY resources/ur3_endoscope_description $COLCON_WS/src/ur3_endoscope_description
 COPY resources/ur3_endoscope_moveit_config $COLCON_WS/src/ur3_endoscope_moveit_config
 COPY resources/endoscope_calibration.yaml /root/endoscope_calibration.yaml
+COPY resources/online_sfm $COLCON_WS/src/online_sfm
 
 # Build the ROS2 workspace
 RUN /bin/bash -c "source /opt/ros/humble/setup.bash && colcon build --cmake-args -DCMAKE_BUILD_TYPE=Release"
