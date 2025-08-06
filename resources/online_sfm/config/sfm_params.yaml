@@ -1,0 +1,37 @@
+# online_sfm configuration parameters
+
+online_sfm_node:
+  ros__parameters:
+    # TF frames
+    world_frame: "world"              # World/map frame name
+    camera_frame: "camera"            # Camera frame name
+    
+    # Point cloud management
+    min_point_distance: 0.05          # Minimum distance between points (meters)
+    min_observations: 2               # Minimum observations to keep a point
+    max_points: 10000                 # Maximum points in the map
+    publish_every_n_frames: 5         # Publish frequency (frames)
+    
+    # RANSAC parameters
+    ransac_threshold: 3.0             # Reprojection error threshold (pixels)
+    ransac_min_inliers: 20            # Minimum inliers required
+    ransac_max_iterations: 1000       # Maximum RANSAC iterations
+    ransac_confidence: 0.99           # Confidence level
+    
+    # Point cloud filtering
+    outlier_radius: 0.2               # Radius for outlier removal (meters)
+    outlier_min_neighbors: 5          # Min neighbors in radius
+    voxel_leaf_size: 0.02             # Voxel grid leaf size (meters)
+    
+    # Feature detection
+    max_features: 1000                # Maximum SIFT features per frame
+    ratio_threshold: 0.75             # Lowe's ratio test threshold
+    
+    # Depth filtering  
+    min_depth: 0.1                    # Minimum triangulation depth (meters)
+    max_depth: 50.0                   # Maximum triangulation depth (meters)
+    
+    # Quality scoring weights
+    observation_weight: 0.5           # Weight for number of observations
+    response_weight: 0.3              # Weight for keypoint response strength
+    depth_weight: 0.2                 # Weight for reasonable depth

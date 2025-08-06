@@ -15,11 +15,11 @@ RUN apt-get update && apt-get install -y \
     ros-humble-moveit-setup-assistant \
     ros-humble-v4l2-camera \
     ros-humble-image-tools \
-    ros-humble-tf2-ros \ 
-    libopencv-dev \
-    libpcl-dev \
+    ros-humble-tf2-ros \
     ros-humble-pcl-conversions \
     ros-humble-pcl-msgs \
+    libpcl-dev \
+    libeigen3-dev \
     ros-humble-cv-bridge \
     ros-humble-image-transport \
     ros-humble-tf2-geometry-msgs \
