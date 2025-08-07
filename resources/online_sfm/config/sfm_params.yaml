@@ -12,9 +12,9 @@ online_sfm_node:
     max_points: 10000                 # Maximum points in the map
     publish_every_n_frames: 5         # Publish frequency (frames)
     
-    # RANSAC parameters
-    ransac_threshold: 3.0             # Reprojection error threshold (pixels)
-    ransac_min_inliers: 20            # Minimum inliers required
+    # RANSAC parameters - relaxed for endoscopy
+    ransac_threshold: 20.0            # Reprojection error threshold (pixels) - RELAXED for endoscopy
+    ransac_min_inliers: 5             # Minimum inliers required - LOWERED
     ransac_max_iterations: 1000       # Maximum RANSAC iterations
     ransac_confidence: 0.99           # Confidence level
     

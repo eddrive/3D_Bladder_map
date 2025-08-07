@@ -1,7 +1,8 @@
 #include "online_sfm/sfm_node.hpp"
 #include <geometry_msgs/msg/transform_stamped.hpp>
 #include <opencv2/calib3d.hpp>
-#include <Eigen/Dense>
+#include <eigen3/Eigen/Dense>
+#include <opencv2/core/eigen.hpp>
 #include <algorithm>
 #include <numeric>
 
@@ -44,6 +45,9 @@ SfMNode::SfMNode() : Node("online_sfm"), rng_(std::random_device{}()), uniform_d
   publish_every_n_frames_ = this->get_parameter("publish_every_n_frames").as_int();
   ransac_threshold_ = this->get_parameter("ransac_threshold").as_double();
   ransac_min_inliers_ = this->get_parameter("ransac_min_inliers").as_int();
+  
+  RCLCPP_INFO(this->get_logger(), "RANSAC params: threshold=%.1f, min_inliers=%d", 
+              ransac_threshold_, ransac_min_inliers_);
   world_frame_ = this->get_parameter("world_frame").as_string();
   camera_frame_ = this->get_parameter("camera_frame").as_string();
   
@@ -129,8 +133,14 @@ void SfMNode::imageCallback(const sensor_msgs::msg::Image::ConstSharedPtr msg) {
 
   cv::Mat image;
   try {
-    image = cv_bridge::toCvShare(msg, "bgr8")->image;
-    RCLCPP_DEBUG(this->get_logger(), "Image converted successfully");
+    // Try to handle both rgb8 and bgr8 encodings
+    if (msg->encoding == "rgb8") {
+      image = cv_bridge::toCvShare(msg, "rgb8")->image;
+      cv::cvtColor(image, image, cv::COLOR_RGB2BGR);  // Convert to BGR for OpenCV
+    } else {
+      image = cv_bridge::toCvShare(msg, "bgr8")->image;
+    }
+    RCLCPP_DEBUG(this->get_logger(), "Image converted successfully from %s", msg->encoding.c_str());
   } catch (cv_bridge::Exception& e) {
     RCLCPP_ERROR(this->get_logger(), "cv_bridge exception: %s", e.what());
     return;
@@ -158,9 +168,7 @@ pcl::PointXYZ SfMNode::triangulatePoint(const cv::KeyPoint& kp1, const cv::KeyPo
   
   // Transform rays to world coordinates
   Eigen::Matrix3d R1 = pose1.block<3, 3>(0, 0);
-  Eigen::Vector3d t1 = pose1.block<3, 1>(0, 3);
   Eigen::Matrix3d R2 = pose2.block<3, 3>(0, 0);
-  Eigen::Vector3d t2 = pose2.block<3, 1>(0, 3);
   
   Eigen::Vector3d ray1_world = R1 * ray1;
   Eigen::Vector3d ray2_world = R2 * ray2;
@@ -190,12 +198,40 @@ bool SfMNode::isInlier(const cv::DMatch& match,
                        const Eigen::Matrix4d& curr_pose,
                        double threshold) {
   
+  // Reset debug counter periodically and debug first match of each frame
+  static int debug_count = 0;
+  static int last_frame = -1;
+  
+  // Reset counter every new frame (use frame counter somehow, or just reset every 100 calls)
+  debug_count++;
+  if (debug_count > 100) debug_count = 0;
+  
+  bool debug_this = debug_count <= 1;  // Debug only first match
+  
+  if (debug_this) {
+    RCLCPP_INFO(this->get_logger(), "=== DEBUGGING MATCH (call %d) ===", debug_count);
+  }
+  
   pcl::PointXYZ point_3d = triangulatePoint(prev_kpts[match.queryIdx], 
                                              curr_kpts[match.trainIdx],
                                              prev_pose, curr_pose);
   
   // Check if triangulation was successful
-  if (point_3d.x == 0 && point_3d.y == 0 && point_3d.z == 0) return false;
+  if (point_3d.x == 0 && point_3d.y == 0 && point_3d.z == 0) {
+    if (debug_this) RCLCPP_WARN(this->get_logger(), "❌ Triangulation failed for match");
+    return false;
+  }
+  
+  if (debug_this) {
+    RCLCPP_INFO(this->get_logger(), "✅ Triangulated point: [%.3f, %.3f, %.3f]", 
+                point_3d.x, point_3d.y, point_3d.z);
+    
+    // Show the keypoint coordinates too
+    RCLCPP_INFO(this->get_logger(), "   Keypoint 1: (%.1f, %.1f)", 
+                prev_kpts[match.queryIdx].pt.x, prev_kpts[match.queryIdx].pt.y);
+    RCLCPP_INFO(this->get_logger(), "   Keypoint 2: (%.1f, %.1f)", 
+                curr_kpts[match.trainIdx].pt.x, curr_kpts[match.trainIdx].pt.y);
+  }
   
   // Check if point is in front of both cameras
   Eigen::Vector3d p3d(point_3d.x, point_3d.y, point_3d.z);
@@ -209,7 +245,19 @@ bool SfMNode::isInlier(const cv::DMatch& match,
     Eigen::Vector3d((curr_kpts[match.trainIdx].pt.x - cx_) / fx_, 
                     (curr_kpts[match.trainIdx].pt.y - cy_) / fy_, 1.0);
   
-  if (ray1_world.dot(p3d - t1) <= 0 || ray2_world.dot(p3d - t2) <= 0) {
+  double depth1 = ray1_world.dot(p3d - t1);
+  double depth2 = ray2_world.dot(p3d - t2);
+  
+  if (debug_this) {
+    RCLCPP_INFO(this->get_logger(), "   Depths: cam1=%.3f, cam2=%.3f", depth1, depth2);
+    RCLCPP_INFO(this->get_logger(), "   Camera positions: t1=[%.3f,%.3f,%.3f], t2=[%.3f,%.3f,%.3f]", 
+                t1.x(), t1.y(), t1.z(), t2.x(), t2.y(), t2.z());
+    RCLCPP_INFO(this->get_logger(), "   Camera intrinsics: fx=%.1f, fy=%.1f, cx=%.1f, cy=%.1f",
+                fx_, fy_, cx_, cy_);
+  }
+  
+  if (depth1 <= 0 || depth2 <= 0) {
+    if (debug_this) RCLCPP_WARN(this->get_logger(), "❌ Point behind camera(s) - depth1=%.3f, depth2=%.3f", depth1, depth2);
     return false;
   }
   
@@ -217,7 +265,15 @@ bool SfMNode::isInlier(const cv::DMatch& match,
   Eigen::Vector3d p1_cam = prev_pose.inverse().block<3, 3>(0, 0) * (p3d - t1);
   Eigen::Vector3d p2_cam = curr_pose.inverse().block<3, 3>(0, 0) * (p3d - t2);
   
-  if (p1_cam[2] <= 0 || p2_cam[2] <= 0) return false;
+  if (debug_this) {
+    RCLCPP_INFO(this->get_logger(), "   Points in camera coords: p1_cam=[%.3f,%.3f,%.3f], p2_cam=[%.3f,%.3f,%.3f]",
+                p1_cam.x(), p1_cam.y(), p1_cam.z(), p2_cam.x(), p2_cam.y(), p2_cam.z());
+  }
+  
+  if (p1_cam[2] <= 0 || p2_cam[2] <= 0) {
+    if (debug_this) RCLCPP_WARN(this->get_logger(), "❌ Negative depth after transformation: p1z=%.3f, p2z=%.3f", p1_cam[2], p2_cam[2]);
+    return false;
+  }
   
   cv::Point2f proj1(fx_ * p1_cam[0] / p1_cam[2] + cx_, fy_ * p1_cam[1] / p1_cam[2] + cy_);
   cv::Point2f proj2(fx_ * p2_cam[0] / p2_cam[2] + cx_, fy_ * p2_cam[1] / p2_cam[2] + cy_);
@@ -225,7 +281,28 @@ bool SfMNode::isInlier(const cv::DMatch& match,
   double error1 = cv::norm(proj1 - prev_kpts[match.queryIdx].pt);
   double error2 = cv::norm(proj2 - curr_kpts[match.trainIdx].pt);
   
-  return (error1 < threshold && error2 < threshold);
+  if (debug_this) {
+    RCLCPP_INFO(this->get_logger(), "   Reprojection errors: %.2f, %.2f (threshold=%.2f)", 
+                error1, error2, threshold);
+    RCLCPP_INFO(this->get_logger(), "   Original pts: (%.1f,%.1f), (%.1f,%.1f)", 
+                prev_kpts[match.queryIdx].pt.x, prev_kpts[match.queryIdx].pt.y,
+                curr_kpts[match.trainIdx].pt.x, curr_kpts[match.trainIdx].pt.y);
+    RCLCPP_INFO(this->get_logger(), "   Projected pts: (%.1f,%.1f), (%.1f,%.1f)", 
+                proj1.x, proj1.y, proj2.x, proj2.y);
+  }
+  
+  bool is_inlier = (error1 < threshold && error2 < threshold);
+  if (debug_this) {
+    if (is_inlier) {
+      RCLCPP_INFO(this->get_logger(), "✅ Match result: INLIER");
+    } else {
+      RCLCPP_WARN(this->get_logger(), "❌ Match result: OUTLIER (error1=%.2f > %.2f OR error2=%.2f > %.2f)", 
+                  error1, threshold, error2, threshold);
+    }
+    RCLCPP_INFO(this->get_logger(), "=== END DEBUGGING MATCH ===");
+  }
+  
+  return is_inlier;
 }
 
 std::vector<cv::DMatch> SfMNode::applyRANSAC(const std::vector<cv::DMatch>& matches,
@@ -233,7 +310,9 @@ std::vector<cv::DMatch> SfMNode::applyRANSAC(const std::vector<cv::DMatch>& matc
                                               const std::vector<cv::KeyPoint>& curr_kpts,
                                               const Eigen::Matrix4d& prev_pose,
                                               const Eigen::Matrix4d& curr_pose) {
-  if (matches.size() < ransac_min_inliers_) {
+  if (matches.size() < static_cast<size_t>(ransac_min_inliers_)) {
+    RCLCPP_WARN(this->get_logger(), "RANSAC: Not enough matches (%zu < %d)", 
+                matches.size(), ransac_min_inliers_);
     return matches;  // Not enough matches for RANSAC
   }
   
@@ -242,6 +321,23 @@ std::vector<cv::DMatch> SfMNode::applyRANSAC(const std::vector<cv::DMatch>& matc
   
   int iterations = std::min(ransac_max_iterations_, 
                            static_cast<int>(matches.size() * matches.size()));
+  
+  RCLCPP_DEBUG(this->get_logger(), "RANSAC: Starting with %zu matches, %d iterations", 
+               matches.size(), iterations);
+  
+  // Test a few matches manually for debugging
+  int manual_inliers = 0;
+  RCLCPP_INFO(this->get_logger(), "=== MANUAL INLIER TEST ===");
+  for (size_t i = 0; i < std::min(matches.size(), size_t(5)); i += 1) {
+    bool is_inlier_result = isInlier(matches[i], prev_kpts, curr_kpts, prev_pose, curr_pose, ransac_threshold_);
+    if (is_inlier_result) {
+      manual_inliers++;
+    }
+    RCLCPP_INFO(this->get_logger(), "Match %zu: %s", i, is_inlier_result ? "INLIER" : "OUTLIER");
+  }
+  RCLCPP_INFO(this->get_logger(), "=== END MANUAL TEST ===");
+  RCLCPP_INFO(this->get_logger(), "RANSAC Debug: %d/%d sample matches are inliers", 
+              manual_inliers, std::min(int(matches.size()), 5));
   
   for (int iter = 0; iter < iterations; ++iter) {
     // Randomly sample matches
@@ -265,8 +361,8 @@ std::vector<cv::DMatch> SfMNode::applyRANSAC(const std::vector<cv::DMatch>& matc
     }
     
     // Update best model if this one is better
-    if (current_inliers.size() > best_inlier_count) {
-      best_inlier_count = current_inliers.size();
+    if (static_cast<int>(current_inliers.size()) > best_inlier_count) {
+      best_inlier_count = static_cast<int>(current_inliers.size());
       best_inliers = current_inliers;
       
       // Early termination if we have enough inliers
@@ -274,24 +370,78 @@ std::vector<cv::DMatch> SfMNode::applyRANSAC(const std::vector<cv::DMatch>& matc
         break;
       }
     }
+    
+    // Report progress every 100 iterations
+    if (iter % 100 == 0 && iter > 0) {
+      RCLCPP_DEBUG(this->get_logger(), "RANSAC iter %d: best inliers = %d", iter, best_inlier_count);
+    }
   }
   
-  RCLCPP_DEBUG(this->get_logger(), "RANSAC: %zu matches -> %d inliers", 
-               matches.size(), best_inlier_count);
+  RCLCPP_INFO(this->get_logger(), "RANSAC: %zu matches -> %d inliers (threshold=%.1f)", 
+              matches.size(), best_inlier_count, ransac_threshold_);
   
-  return best_inliers.size() >= ransac_min_inliers_ ? best_inliers : std::vector<cv::DMatch>();
+  return best_inliers.size() >= static_cast<size_t>(ransac_min_inliers_) ? best_inliers : std::vector<cv::DMatch>();
 }
 
 void SfMNode::processFrame(const cv::Mat& image, const Eigen::Matrix4d& T) {
   RCLCPP_DEBUG(this->get_logger(), "Processing frame of size %dx%d", image.cols, image.rows);
   
-  auto sift = cv::SIFT::create(1000);  // Limit to 1000 features
+  // Make a mutable copy for potential modification
+  Eigen::Matrix4d current_pose = T;
+  
+  // Check image statistics
+  cv::Scalar mean_val = cv::mean(image);
+  double min_val, max_val;
+  cv::minMaxLoc(image, &min_val, &max_val);
+  
+  RCLCPP_INFO(this->get_logger(), "Image stats - Mean: %.1f, Min: %.1f, Max: %.1f", 
+              mean_val[0], min_val, max_val);
+  
+  // Convert to grayscale for feature detection
+  cv::Mat gray_image;
+  if (image.channels() == 3) {
+    cv::cvtColor(image, gray_image, cv::COLOR_BGR2GRAY);
+  } else {
+    gray_image = image.clone();
+  }
+  
+  // Apply histogram equalization to enhance contrast
+  cv::Mat enhanced_image;
+  cv::equalizeHist(gray_image, enhanced_image);
+  
+  // More aggressive SIFT parameters
+  auto sift = cv::SIFT::create(
+    2000,      // nfeatures - increase from 1000
+    4,         // nOctaveLayers 
+    0.03,      // contrastThreshold - lower = more features (default 0.04)
+    5,         // edgeThreshold - lower = more features (default 10)
+    1.6        // sigma
+  );
+  
   std::vector<cv::KeyPoint> keypoints;
   cv::Mat descriptors;
-  sift->detectAndCompute(image, cv::noArray(), keypoints, descriptors);
-
-  RCLCPP_INFO(this->get_logger(), "Frame %d: Detected %zu SIFT features", 
+  
+  // Try on both original and enhanced images
+  sift->detectAndCompute(gray_image, cv::noArray(), keypoints, descriptors);
+  
+  RCLCPP_INFO(this->get_logger(), "Frame %d: Detected %zu SIFT features on original image", 
               frame_counter_, keypoints.size());
+  
+  // If no features on original, try enhanced
+  if (keypoints.empty()) {
+    sift->detectAndCompute(enhanced_image, cv::noArray(), keypoints, descriptors);
+    RCLCPP_INFO(this->get_logger(), "Frame %d: Detected %zu SIFT features on enhanced image", 
+                frame_counter_, keypoints.size());
+  }
+  
+  // If still no features, try ORB as fallback
+  if (keypoints.empty()) {
+    RCLCPP_WARN(this->get_logger(), "No SIFT features found, trying ORB...");
+    auto orb = cv::ORB::create(2000);
+    orb->detectAndCompute(enhanced_image, cv::noArray(), keypoints, descriptors);
+    RCLCPP_INFO(this->get_logger(), "Frame %d: Detected %zu ORB features", 
+                frame_counter_, keypoints.size());
+  }
 
   if (has_prev_ && !prev_descriptors_.empty()) {
     RCLCPP_DEBUG(this->get_logger(), "Matching with previous frame");
@@ -322,9 +472,79 @@ void SfMNode::processFrame(const cv::Mat& image, const Eigen::Matrix4d& T) {
                 frame_counter_, knn_matches.size(), good_matches.size());
 
     if (good_matches.size() >= 10) {
+      // Debug: Print both poses
+      Eigen::Vector3d t1 = prev_pose_.block<3, 1>(0, 3);
+      Eigen::Vector3d t2 = current_pose.block<3, 1>(0, 3);
+      
+      RCLCPP_INFO(this->get_logger(), "Pose1: [%.3f, %.3f, %.3f]", t1.x(), t1.y(), t1.z());
+      RCLCPP_INFO(this->get_logger(), "Pose2: [%.3f, %.3f, %.3f]", t2.x(), t2.y(), t2.z());
+      
+      double translation_distance = (t2 - t1).norm();
+      
+      Eigen::Matrix3d R1 = prev_pose_.block<3, 3>(0, 0);
+      Eigen::Matrix3d R2 = current_pose.block<3, 3>(0, 0);
+      Eigen::Matrix3d R_diff = R2 * R1.transpose();
+      double angle_diff = std::acos(std::clamp((R_diff.trace() - 1) / 2, -1.0, 1.0));
+      
+      RCLCPP_INFO(this->get_logger(), "Frame %d: Camera moved %.4fm, rotated %.2f°", 
+                  frame_counter_, translation_distance, angle_diff * 180.0 / M_PI);
+      
+      // Force visual odometry for testing - DISABLED, use TF directly
+      if (false && translation_distance < 0.050) {  // DISABLED - use TF poses directly
+        RCLCPP_WARN_THROTTLE(this->get_logger(), *this->get_clock(), 2000,
+                              "TF shows no movement, trying visual odometry estimation...");
+        
+        // Use OpenCV's essential matrix to estimate camera motion
+        std::vector<cv::Point2f> pts1, pts2;
+        for (const auto& match : good_matches) {
+          pts1.push_back(prev_keypoints_[match.queryIdx].pt);
+          pts2.push_back(keypoints[match.trainIdx].pt);
+        }
+        
+        // Estimate essential matrix
+        cv::Mat essential_matrix = cv::findEssentialMat(
+          pts1, pts2, 
+          camera_matrix_, 
+          cv::RANSAC, 0.999, 1.0
+        );
+        
+        if (!essential_matrix.empty()) {
+          cv::Mat R, t, mask;
+          int inliers = cv::recoverPose(essential_matrix, pts1, pts2, camera_matrix_, R, t, mask);
+          
+          if (inliers > 10) {
+            RCLCPP_INFO(this->get_logger(), 
+                        "Visual odometry: translation=%.3fm, %d inliers", 
+                        cv::norm(t), inliers);
+            
+            // Create new pose based on visual odometry
+            Eigen::Matrix3d R_eigen;
+            Eigen::Vector3d t_eigen;
+            cv::cv2eigen(R, R_eigen);
+            cv::cv2eigen(t, t_eigen);
+            
+            // Scale translation (assume movement is around 1-5cm)
+            double scale = 0.02;  // 2cm typical movement
+            t_eigen *= scale;
+            
+            Eigen::Matrix4d estimated_pose = prev_pose_;
+            estimated_pose.block<3, 3>(0, 0) = prev_pose_.block<3, 3>(0, 0) * R_eigen;
+            estimated_pose.block<3, 1>(0, 3) += prev_pose_.block<3, 3>(0, 0) * t_eigen;
+            
+            // Use estimated pose instead of TF
+            current_pose = estimated_pose;
+            
+            RCLCPP_INFO(this->get_logger(), 
+                        "Using estimated pose with scale %.3fm", scale);
+          }
+        }
+      } else {
+        RCLCPP_INFO(this->get_logger(), "Sufficient movement detected, proceeding with triangulation");
+      }
+      
       // Apply RANSAC filtering
       std::vector<cv::DMatch> ransac_inliers = applyRANSAC(good_matches, prev_keypoints_, 
-                                                            keypoints, prev_pose_, T);
+                                                            keypoints, prev_pose_, current_pose);
       
       RCLCPP_INFO(this->get_logger(), "Frame %d: RANSAC filtered to %zu inliers", 
                   frame_counter_, ransac_inliers.size());
@@ -335,12 +555,12 @@ void SfMNode::processFrame(const cv::Mat& image, const Eigen::Matrix4d& T) {
         for (const auto& match : ransac_inliers) {
           pcl::PointXYZ point = triangulatePoint(prev_keypoints_[match.queryIdx],
                                                  keypoints[match.trainIdx],
-                                                 prev_pose_, T);
+                                                 prev_pose_, current_pose);
           
           // Basic depth check
           Eigen::Vector3d p3d(point.x, point.y, point.z);
           Eigen::Vector3d t1 = prev_pose_.block<3, 1>(0, 3);
-          Eigen::Vector3d t2 = T.block<3, 1>(0, 3);
+          Eigen::Vector3d t2 = current_pose.block<3, 1>(0, 3);
           double depth1 = (p3d - t1).norm();
           double depth2 = (p3d - t2).norm();
           
@@ -378,7 +598,7 @@ update_frame_data:
   prev_image_ = image.clone();
   prev_descriptors_ = descriptors.clone();
   prev_keypoints_ = keypoints;
-  prev_pose_ = T;
+  prev_pose_ = current_pose;
   has_prev_ = true;
   
   RCLCPP_DEBUG(this->get_logger(), "Frame data updated for next iteration");
@@ -406,7 +626,7 @@ void SfMNode::addPointsToMap(const std::vector<pcl::PointXYZ>& new_points,
                                neighbor_indices, neighbor_distances) > 0) {
         // Found nearby points, merge with the closest one
         int closest_idx = neighbor_indices[0];
-        if (closest_idx < point_map_.size()) {
+        if (closest_idx < static_cast<int>(point_map_.size())) {
           point_map_[closest_idx].observation_count++;
           point_map_[closest_idx].frame_ids.push_back(frame_counter_);
           point_map_[closest_idx].observations.push_back(current_keypoints[matches[i].trainIdx]);
@@ -430,7 +650,7 @@ void SfMNode::addPointsToMap(const std::vector<pcl::PointXYZ>& new_points,
   }
   
   // Remove points with too few observations or maintain max points limit
-  if (point_map_.size() > max_points_) {
+  if (point_map_.size() > static_cast<size_t>(max_points_)) {
     filterPointCloud();
   }
 }
@@ -475,8 +695,8 @@ void SfMNode::filterPointCloud() {
   point_map_.erase(it, point_map_.end());
   
   // Limit to max points
-  if (point_map_.size() > max_points_) {
-    point_map_.resize(max_points_);
+  if (point_map_.size() > static_cast<size_t>(max_points_)) {
+    point_map_.resize(static_cast<size_t>(max_points_));
   }
   
   // Rebuild accumulated cloud
