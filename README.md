@@ -65,12 +65,8 @@ docker build: Initiates the Docker build process.
 xhost +local:root
 ```
 ```shellscript
- docker run -it --rm --net=host \
-  -e DISPLAY=$DISPLAY \
-  -v /tmp/.X11-unix:/tmp/.X11-unix \
-  --device=/dev/video2:/dev/video2 \
-  --device=/dev/video3:/dev/video3 \
-  ros2-ur3:latest
+ docker run -it --rm --net=host -e DISPLAY=$DISPLAY -v /tmp/.X11-unix:/tmp/.X11-unix --device=/dev/video0:/dev/video2 --device=/dev/video1:/dev/video3 --gpus all ros2-ur3:latest
+
 ```
 
 
