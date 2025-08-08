@@ -319,7 +319,7 @@ def launch_setup(context, *args, **kwargs):
                     '0.21681',   
                     '0',          
                     '0',         
-                    '-0.5236',          #30 gradi in radianti per puntare a dove vede la camera.
+                    '3.66519',          #30 gradi in radianti per puntare a dove vede la camera.
                     'wrist_3_link',
                     'camera'  
         ]

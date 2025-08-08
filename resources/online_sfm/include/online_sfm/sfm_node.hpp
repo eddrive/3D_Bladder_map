@@ -16,45 +16,16 @@
 #include <pcl/filters/voxel_grid.h>
 #include <pcl/filters/radius_outlier_removal.h>
 #include <pcl/kdtree/kdtree_flann.h>
+#include <Eigen/Dense>
 #include <unordered_set>
 #include <random>
-#include <map>
-#include <deque>
 
 struct PointWithObservations {
   pcl::PointXYZ point;
   std::vector<int> frame_ids;
-  std::vector<int> keyframe_ids;           // NEW: Track which keyframes observe this point
   std::vector<cv::KeyPoint> observations;
   int observation_count;
   double quality_score;
-  rclcpp::Time first_seen;                 // NEW: When first observed
-  rclcpp::Time last_seen;                  // NEW: When last observed
-};
-
-struct Keyframe {
-  int id;
-  rclcpp::Time timestamp;
-  cv::Mat image;                           // Store original image for debugging
-  cv::Mat processed_image;                 // Store preprocessed version
-  std::vector<cv::KeyPoint> keypoints;
-  cv::Mat descriptors;
-  Eigen::Matrix4d pose;
-  double quality_score;                    // How good is this keyframe
-  std::vector<int> point_ids;              // Points observed in this keyframe
-  
-  // Quality metrics
-  int num_matches_with_prev = 0;           // Matches with previous keyframes
-  double motion_blur_score = 0.0;          // Blur assessment
-  double feature_density = 0.0;            // Features per area
-};
-
-struct KeyframeMatch {
-  int keyframe1_id;
-  int keyframe2_id; 
-  std::vector<cv::DMatch> matches;
-  std::vector<cv::DMatch> inlier_matches;  // After RANSAC
-  double geometric_score;                   // Quality of geometric fit
 };
 
 class SfMNode : public rclcpp::Node {
@@ -77,31 +48,28 @@ private:
   double detectMotionBlur(const cv::Mat& image);
   void logPreprocessingStats(const cv::Mat& original, const cv::Mat& processed);
   
-  // Keyframe management
-  bool shouldCreateKeyframe(const Eigen::Matrix4d& current_pose, const cv::Mat& image,
-                           const std::vector<cv::KeyPoint>& keypoints);
-  void createNewKeyframe(const cv::Mat& image, const cv::Mat& processed_image,
-                        const std::vector<cv::KeyPoint>& keypoints, const cv::Mat& descriptors,
-                        const Eigen::Matrix4d& pose);
-  void pruneKeyframes();
-  double calculateKeyframeQuality(const cv::Mat& image, const std::vector<cv::KeyPoint>& keypoints,
-                                 int num_matches, double motion_blur_score);
+  // Endoscope-specific functions
+  std::vector<cv::KeyPoint> undistortKeypoints(const std::vector<cv::KeyPoint>& keypoints);
+  bool isInlierUndistorted(const cv::DMatch& match,
+                          const std::vector<cv::KeyPoint>& prev_kpts_undist,
+                          const std::vector<cv::KeyPoint>& curr_kpts_undist,
+                          const Eigen::Matrix4d& prev_pose,
+                          const Eigen::Matrix4d& curr_pose,
+                          double threshold);
   
-  // Multi-keyframe matching
-  std::vector<KeyframeMatch> matchWithKeyframes(const std::vector<cv::KeyPoint>& current_keypoints,
-                                               const cv::Mat& current_descriptors,
-                                               const Eigen::Matrix4d& current_pose);
-  bool shouldMatchWithKeyframe(const Keyframe& kf, const Eigen::Matrix4d& current_pose);
-  KeyframeMatch matchTwoKeyframes(const Keyframe& kf1, const std::vector<cv::KeyPoint>& kf2_keypoints,
-                                 const cv::Mat& kf2_descriptors, const Eigen::Matrix4d& kf2_pose);
-  
-  // Multi-view triangulation
-  void triangulateMultiView(const std::vector<KeyframeMatch>& keyframe_matches,
-                           const std::vector<cv::KeyPoint>& current_keypoints,
-                           const Eigen::Matrix4d& current_pose);
-  std::vector<pcl::PointXYZ> triangulateFromMultipleViews(
-    const std::vector<std::pair<int, cv::KeyPoint>>& observations,  // keyframe_id, keypoint
-    const std::vector<Eigen::Matrix4d>& poses);
+  // Debug functions - NUOVE AGGIUNTE
+  void debugCameraPoses(const Eigen::Matrix4d& pose1, const Eigen::Matrix4d& pose2, int frame_num);
+  void testProgressiveThresholds(const std::vector<cv::DMatch>& good_matches,
+                                const std::vector<cv::KeyPoint>& undistorted_prev_keypoints,
+                                const std::vector<cv::KeyPoint>& undistorted_keypoints,
+                                const Eigen::Matrix4d& prev_pose,
+                                const Eigen::Matrix4d& curr_pose);
+  void analyzeRansacFailures(const std::vector<cv::DMatch>& good_matches,
+                            const std::vector<cv::KeyPoint>& undistorted_prev_keypoints,
+                            const std::vector<cv::KeyPoint>& undistorted_keypoints,
+                            const Eigen::Matrix4d& prev_pose,
+                            const Eigen::Matrix4d& curr_pose,
+                            double threshold);
   
   // Geometric validation
   pcl::PointXYZ triangulatePoint(const cv::KeyPoint& kp1, const cv::KeyPoint& kp2,
@@ -109,18 +77,22 @@ private:
   bool isInlier(const cv::DMatch& match, const std::vector<cv::KeyPoint>& prev_kpts,
                 const std::vector<cv::KeyPoint>& curr_kpts, const Eigen::Matrix4d& prev_pose,
                 const Eigen::Matrix4d& curr_pose, double threshold);
+  Eigen::Vector3d projectToCamera(const Eigen::Vector4d& point_3d, 
+                                  const Eigen::Matrix4d& camera_pose);
   std::vector<cv::DMatch> applyRANSAC(const std::vector<cv::DMatch>& matches,
                                       const std::vector<cv::KeyPoint>& prev_kpts,
                                       const std::vector<cv::KeyPoint>& curr_kpts,
                                       const Eigen::Matrix4d& prev_pose,
                                       const Eigen::Matrix4d& curr_pose);
   
-  // Point management (enhanced)
+  // Keyframe triggering
+  bool shouldProcessFrame(const Eigen::Matrix4d& current_pose, 
+                         const rclcpp::Time& current_time);
+  
+  // Point management
   void addPointsToMap(const std::vector<pcl::PointXYZ>& new_points,
                       const std::vector<cv::DMatch>& matches,
-                      const std::vector<cv::KeyPoint>& current_keypoints,
-                      int current_keyframe_id = -1);  // NEW: Track keyframe association
-  void updatePointObservations(int point_id, int keyframe_id, const cv::KeyPoint& keypoint);
+                      const std::vector<cv::KeyPoint>& current_keypoints);
   double calculatePointQuality(const pcl::PointXYZ& point, 
                                const std::vector<cv::KeyPoint>& observations);
   void filterPointCloud();
@@ -141,28 +113,25 @@ private:
   double fx_, fy_, cx_, cy_;
 
   // Frame tracking
+  std::vector<cv::KeyPoint> prev_keypoints_;
+  cv::Mat prev_descriptors_;
+  cv::Mat prev_image_;
+  Eigen::Matrix4d prev_pose_;
+  bool has_prev_ = false;
   int frame_counter_ = 0;
   
-  // Keyframe storage
-  std::deque<Keyframe> keyframes_;          // Sliding window of keyframes
-  int next_keyframe_id_ = 0;                // Unique keyframe IDs
-  int current_keyframe_id_ = -1;            // ID of most recent keyframe
+  // Keyframe tracking
+  int keyframe_counter_ = 0;
+  rclcpp::Time last_keyframe_time_;
+  cv::Mat current_image_;
+  Eigen::Matrix4d current_pose_;
   
   // Point cloud management  
   std::vector<PointWithObservations> point_map_;
   pcl::PointCloud<pcl::PointXYZ>::Ptr accumulated_cloud_;
   pcl::KdTreeFLANN<pcl::PointXYZ> kdtree_;
-  int next_point_id_ = 0;                   // Unique point IDs
   
-  // Keyframe parameters
-  int max_keyframes_ = 8;                   // Maximum keyframes to maintain
-  double keyframe_distance_threshold_ = 0.03; // 3cm minimum distance for new keyframe
-  double keyframe_rotation_threshold_ = 8.0;  // 8° minimum rotation for new keyframe  
-  double keyframe_feature_threshold_ = 0.7;   // Feature overlap threshold
-  double match_distance_threshold_ = 0.25;    // 25cm max distance for keyframe matching
-  int min_keyframe_matches_ = 15;             // Minimum matches between keyframes
-  
-  // Standard parameters (existing)
+  // Basic parameters
   double min_point_distance_ = 0.05;
   int min_observations_ = 2;
   int max_points_ = 10000;
@@ -173,11 +142,16 @@ private:
   std::string world_frame_ = "world";
   std::string camera_frame_ = "camera";
   
-  // RANSAC parameters  
-  int ransac_max_iterations_ = 1000;
-  double ransac_threshold_ = 20.0;
+  // Keyframe triggering (ENDOSCOPE VALUES)
+  double min_baseline_meters_ = 0.015;
+  double min_rotation_degrees_ = 1.5;
+  double max_time_between_keyframes_ = 2.0;
+  
+  // RANSAC parameters (ENDOSCOPE VALUES)
+  int ransac_max_iterations_ = 2000;
+  double ransac_threshold_ = 5.0;
   double ransac_confidence_ = 0.99;
-  int ransac_min_inliers_ = 5;
+  int ransac_min_inliers_ = 12;
   
   // Preprocessing parameters
   bool use_morphological_correction_ = false;
