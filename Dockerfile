@@ -87,6 +87,7 @@ RUN rosdep install --ignore-src --from-paths src -y --rosdistro humble
 COPY resources/ur3_endoscope_description $COLCON_WS/src/ur3_endoscope_description
 COPY resources/ur3_endoscope_moveit_config $COLCON_WS/src/ur3_endoscope_moveit_config
 COPY resources/endoscope_calibration.yaml /root/endoscope_calibration.yaml
+COPY resources/endoscope_calibration.yaml /root/endoscope_mask.png
 COPY resources/bladder_rtabmapper $COLCON_WS/src/bladder_rtabmapper
 COPY resources/midas_depth_ros $COLCON_WS/src/midas_depth_ros
 

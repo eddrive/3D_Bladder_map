@@ -4,7 +4,7 @@ from launch.substitutions import LaunchConfiguration
 from launch_ros.actions import Node
 
 def generate_launch_description():
-    """Launch file for MiDaS depth estimation node"""
+    """Launch file for MiDaS depth estimation node with fisheye correction"""
     
     # Declare launch arguments
     model_type_arg = DeclareLaunchArgument(
@@ -19,7 +19,6 @@ def generate_launch_description():
         description='Input resolution for MiDaS model'
     )
     
-    # NUOVO: parametro per downsampling
     camera_downsample_arg = DeclareLaunchArgument(
         'camera_downsample_factor',
         default_value='2',
@@ -44,15 +43,30 @@ def generate_launch_description():
         description='Scale factor for depth values (1000 = mm)'
     )
     
+    # AGGIORNATO: Range più realistico per endoscopi
     max_depth_arg = DeclareLaunchArgument(
         'max_depth',
-        default_value='200.0',
-        description='Maximum expected depth in mm (typical bladder size)'
+        default_value='2000.0',  # 2m invece di 200mm
+        description='Maximum expected depth in mm (endoscope range)'
     )
     
-    # MiDaS depth estimation node
+    # NUOVO: Parametro per maschera endoscopio
+    endoscope_mask_arg = DeclareLaunchArgument(
+        'endoscope_mask_path',
+        default_value='/root/endoscope_mask.png',
+        description='Path to endoscope ROI mask file'
+    )
+    
+    # OPZIONALE: Parametri aggiuntivi per debug
+    debug_mode_arg = DeclareLaunchArgument(
+        'debug_mode',
+        default_value='false',
+        description='Enable debug output and visualization'
+    )
+    
+    # MiDaS depth estimation node with fisheye correction
     midas_node = Node(
-        package='midas_depth_ros',
+        package='midas_depth_ros',  # Assicurati che questo sia il nome corretto del tuo package
         executable='midas_depth_node.py',
         name='midas_depth_node',
         output='screen',
@@ -64,8 +78,14 @@ def generate_launch_description():
             'apply_vesica_preprocessing': LaunchConfiguration('apply_vesica_preprocessing'),
             'depth_scale_factor': LaunchConfiguration('depth_scale_factor'),
             'max_depth': LaunchConfiguration('max_depth'),
+            'endoscope_mask_path': LaunchConfiguration('endoscope_mask_path'),  # NUOVO
             'optimize_transforms': True,
-        }]
+        }],
+        # OPZIONALE: Remapping se i tuoi topic hanno nomi diversi
+        remappings=[
+            # ('/endoscope/image_raw', '/your_camera/image_raw'),
+            # ('/endoscope/camera_info', '/your_camera/camera_info'),
+        ]
     )
     
     return LaunchDescription([
@@ -76,5 +96,7 @@ def generate_launch_description():
         vesica_preprocessing_arg,
         depth_scale_factor_arg,
         max_depth_arg,
+        endoscope_mask_arg,  # NUOVO
+        debug_mode_arg,      # OPZIONALE
         midas_node,
     ])

@@ -20,6 +20,10 @@ rtabmap:
     # # === ODOMETRIA ESTERNA (FONDAMENTALE) ===
     Vis/EstimationType: "1"         # 0 = disabilita odometria visiva (usa esterna)
     odom_sensor_sync: true        # Sincronizza con odometria esterna
+
+     # === MASCHERA ENDOSCOPIO ===
+    Vis/Mask: "/root/endoscope_mask.png"     # Maschera per features visive
+    Kp/Mask: "/root/endoscope_mask.png"      # Maschera per keypoints
     
     # # === MAPPATURA 3D (CORRETTA) ===
     Grid/3D: "true"                 # ABILITA mappatura 3D
