@@ -26,6 +26,7 @@ class MidasDepthNode(Node):
     """
     ROS2 node for real-time depth estimation using MiDaS
     Optimized for RTX 3070 and endoscopic bladder mapping with fisheye correction
+    Publishes both corrected and raw-distorted depth maps
     """
     
     def __init__(self):
@@ -84,7 +85,7 @@ class MidasDepthNode(Node):
         # Setup publishers and subscribers
         self.setup_ros_interface()
         
-        self.get_logger().info('MiDaS Depth Node with fisheye correction initialized successfully')
+        self.get_logger().info('MiDaS Depth Node with dual depth publication initialized successfully')
     
     def load_model(self):
         """Load and optimize MiDaS model"""
@@ -154,12 +155,21 @@ class MidasDepthNode(Node):
         )
         self.sync.registerCallback(self.image_callback)
 
-        # Publishers - mantengono i nomi standard per RTAB-Map
-        self.depth_pub = self.create_publisher(
+        # DOPPIA PUBBLICAZIONE DEPTH:
+        # 1. Depth RAW distorta (per RTABMap con immagine raw)
+        self.depth_raw_pub = self.create_publisher(
             Image, '/endoscope/depth/image_raw', 10
         )
-        self.depth_info_pub = self.create_publisher(
+        self.depth_raw_info_pub = self.create_publisher(
             CameraInfo, '/endoscope/depth/camera_info', 10
+        )
+        
+        # 2. Depth CORRETTA (geometria fisheye corretta, qualità migliore)
+        self.depth_corrected_pub = self.create_publisher(
+            Image, '/endoscope/depth_corrected/image_raw', 10
+        )
+        self.depth_corrected_info_pub = self.create_publisher(
+            CameraInfo, '/endoscope/depth_corrected/camera_info', 10
         )
     
         # Performance monitoring
@@ -225,6 +235,26 @@ class MidasDepthNode(Node):
             # Fallback: resize semplice
             return cv2.resize(depth_corrected, (w, h), interpolation=cv2.INTER_CUBIC)
     
+    def create_corrected_camera_info(self, original_camera_info):
+        """Crea camera_info per l'immagine corretta (senza distorsione)"""
+        corrected_info = CameraInfo()
+        corrected_info.header = original_camera_info.header
+        corrected_info.height = original_camera_info.height
+        corrected_info.width = original_camera_info.width
+        corrected_info.distortion_model = "plumb_bob"  # Nessuna distorsione fisheye
+        
+        # Mantieni matrice intrinseca K
+        corrected_info.k = original_camera_info.k
+        
+        # Azzera coefficienti di distorsione (immagine corretta)
+        corrected_info.d = [0.0, 0.0, 0.0, 0.0, 0.0]
+        
+        # Matrice di proiezione e rettifica
+        corrected_info.p = original_camera_info.p
+        corrected_info.r = [1.0, 0.0, 0.0, 0.0, 1.0, 0.0, 0.0, 0.0, 1.0]  # Identità
+        
+        return corrected_info
+    
     def preprocess_endoscopic_image(self, cv_image):
         """Preprocessing optimized for endoscopic bladder images"""
 
@@ -266,13 +296,17 @@ class MidasDepthNode(Node):
         
         return result
     
-    def estimate_depth(self, cv_image, camera_info):
-        """Depth estimation con correzione fisheye e ri-mappatura"""
+    def estimate_depth_dual(self, cv_image, camera_info):
+        """
+        Stima depth UNA SOLA VOLTA su immagine corretta e ritorna ENTRAMBE le versioni:
+        - depth_corrected: su geometria corretta (migliore qualità)
+        - depth_raw: ri-distorta per matchare immagine raw (per RTABMap)
+        """
         try:
-            # 1. CORREGGI FISHEYE per MiDaS
+            # 1. CORREGGI FISHEYE per MiDaS (una sola volta)
             corrected_image = self.undistort_fisheye(cv_image, camera_info)
             
-            # 2. MiDaS su immagine CORRETTA
+            # 2. MiDaS SOLO su immagine CORRETTA (una sola volta)
             processed_image = self.preprocess_endoscopic_image(corrected_image)
             input_tensor = self.transform({"image": processed_image})["image"]
             
@@ -281,23 +315,23 @@ class MidasDepthNode(Node):
             if self.use_half_precision and self.device.type == 'cuda':
                 input_tensor = input_tensor.half()
             
-            # Inference su geometria corretta
+            # Inference UNA SOLA VOLTA su geometria corretta
             with torch.no_grad():
                 depth_tensor = self.model(input_tensor)
             
-            depth_corrected = depth_tensor.squeeze().cpu().numpy().astype(np.float32)
+            depth_midas_raw = depth_tensor.squeeze().cpu().numpy().astype(np.float32)
             
-            # 3. Post-process depth corretta
-            depth_processed = self.postprocess_depth_corrected(depth_corrected, corrected_image.shape)
+            # 3. Post-process depth corretta (questa è la versione "buona")
+            depth_corrected = self.postprocess_depth_corrected(depth_midas_raw, corrected_image.shape)
             
-            # 4. RI-DISTORCI per matchare RGB raw
-            depth_raw = self.redistort_depth_to_raw(depth_processed, camera_info, cv_image.shape)
+            # 4. RI-DISTORCI solo il RISULTATO depth per matchare RGB raw
+            depth_raw = self.redistort_depth_to_raw(depth_corrected, camera_info, cv_image.shape)
             
-            return depth_raw
+            return depth_corrected, depth_raw
             
         except Exception as e:
             self.get_logger().error(f'Depth estimation failed: {str(e)}')
-            return None
+            return None, None
     
     def postprocess_depth_corrected(self, depth, corrected_shape):
         """Post-process su depth corretta (senza ridistorsione)"""
@@ -317,13 +351,19 @@ class MidasDepthNode(Node):
         
         return depth_smooth
     
-    def apply_endoscope_mask(self, depth_array):
-        """Applica maschera endoscopio su depth raw"""
+    def apply_endoscope_mask(self, depth_array, target_shape=None):
+        """Applica maschera endoscopio"""
         if self.endoscope_mask is not None:
-            if self.endoscope_mask.shape != depth_array.shape[:2]:
+            # Se specificato target_shape, usa quello, altrimenti usa shape depth
+            if target_shape is not None:
+                mask_shape = target_shape[:2]
+            else:
+                mask_shape = depth_array.shape[:2]
+                
+            if self.endoscope_mask.shape != mask_shape:
                 mask_resized = cv2.resize(
                     self.endoscope_mask, 
-                    (depth_array.shape[1], depth_array.shape[0])
+                    (mask_shape[1], mask_shape[0])
                 )
             else:
                 mask_resized = self.endoscope_mask
@@ -334,26 +374,8 @@ class MidasDepthNode(Node):
         
         return depth_array
     
-    def postprocess_depth(self, depth, original_shape):
-        """DEPRECATED: Metodo originale mantenuto per compatibilità"""
-        # Questo metodo non viene più usato, ma mantenuto per sicurezza
-        depth_resized = cv2.resize(
-            depth, 
-            (original_shape[1], original_shape[0]), 
-            interpolation=cv2.INTER_CUBIC
-        )
-        
-        depth_normalized = cv2.normalize(depth_resized, None, 0, 255, cv2.NORM_MINMAX)
-        depth_mm = self.max_depth * (1.0 - depth_normalized / 255.0)
-        depth_smooth = cv2.medianBlur(depth_mm.astype(np.float32), 5)
-        
-        # CORREZIONE: Non più la scala sbagliata
-        depth_final = depth_smooth.astype(np.uint16)
-        
-        return depth_final
-    
     def image_callback(self, image_msg, camera_info_msg):
-        """Callback principale con correzione fisheye"""
+        """Callback principale con doppia pubblicazione depth"""
         try:
             cv_image = self.bridge.imgmsg_to_cv2(image_msg, image_msg.encoding)
             
@@ -361,22 +383,32 @@ class MidasDepthNode(Node):
                 self.get_logger().error("Image conversion failed!")
                 return
             
-            # Stima depth con pipeline corretta (fisheye correction)
-            depth_raw = self.estimate_depth(cv_image, camera_info_msg)
+            # Stima ENTRAMBE le depth
+            depth_corrected, depth_raw = self.estimate_depth_dual(cv_image, camera_info_msg)
             
-            if depth_raw is not None:
-                # Applica maschera endoscopio su risultato raw
-                depth_masked = self.apply_endoscope_mask(depth_raw)
+            if depth_corrected is not None and depth_raw is not None:
                 
-                # Pubblica depth raw (quello che vuole RTABMap)
-                depth_msg = self.bridge.cv2_to_imgmsg(depth_masked.astype(np.uint16), "16UC1")
-                depth_msg.header = image_msg.header
+                # === PUBBLICAZIONE 1: DEPTH RAW (per RTABMap) ===
+                depth_raw_masked = self.apply_endoscope_mask(depth_raw, cv_image.shape)
+                depth_raw_msg = self.bridge.cv2_to_imgmsg(depth_raw_masked.astype(np.uint16), "16UC1")
+                depth_raw_msg.header = image_msg.header
+                self.depth_raw_pub.publish(depth_raw_msg)
                 
-                self.depth_pub.publish(depth_msg)
+                # Camera info raw (identica all'input, con distorsione fisheye)
+                camera_info_raw = camera_info_msg
+                camera_info_raw.header = image_msg.header
+                self.depth_raw_info_pub.publish(camera_info_raw)
                 
-                # Camera info raw (identica all'input)
-                camera_info_msg.header = image_msg.header
-                self.depth_info_pub.publish(camera_info_msg)
+                # === PUBBLICAZIONE 2: DEPTH CORRECTED (qualità migliore) ===
+                depth_corrected_masked = self.apply_endoscope_mask(depth_corrected)
+                depth_corrected_msg = self.bridge.cv2_to_imgmsg(depth_corrected_masked.astype(np.uint16), "16UC1")
+                depth_corrected_msg.header = image_msg.header
+                self.depth_corrected_pub.publish(depth_corrected_msg)
+                
+                # Camera info corrected (senza distorsione fisheye)
+                camera_info_corrected = self.create_corrected_camera_info(camera_info_msg)
+                camera_info_corrected.header = image_msg.header
+                self.depth_corrected_info_pub.publish(camera_info_corrected)
                 
                 self.frame_count += 1
                 
@@ -390,7 +422,7 @@ class MidasDepthNode(Node):
         
         if elapsed > 0:
             fps = self.frame_count / elapsed
-            self.get_logger().info(f'Depth estimation FPS: {fps:.2f}')
+            self.get_logger().info(f'Dual depth estimation FPS: {fps:.2f}')
         
         self.frame_count = 0
         self.last_fps_time = current_time
