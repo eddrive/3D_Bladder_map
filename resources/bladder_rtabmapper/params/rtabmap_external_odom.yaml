@@ -50,9 +50,12 @@ rtabmap:
     
     # # === PERFORMANCE ===
     approx_sync: true             # Sincronizzazione approssimativa
-    queue_size: 10                # Dimensione buffer
+    queue_size: 50                # Dimensione buffer
+    sync_queue_size: 50         # NUOVO parametro
+    topic_queue_size: 50        # NUOVO parametro
     publish_tf: true             # Pubblica trasformazioni
     tf_delay: 0.05                # Ritardo TF
+    approx_sync_max_interval: 0.5
     
     # # === OPTIMIZER (3D SLAM) ===
     Optimizer/Strategy: "1"         # g2o optimizer
@@ -60,7 +63,7 @@ rtabmap:
     RGBD/OptimizeFromGraphEnd: "false" # Ottimizza da inizio grafo
     
     # # === MAPPING SPECIFICO ===
-    Rtabmap/DetectionRate: "1.0"    # Frequenza detection
+    Rtabmap/DetectionRate: "0.5"    # Frequenza detection
     Rtabmap/TimeThr: "0"            # No limite tempo
     Rtabmap/MemoryThr: "0"          # No limite memoria
     RGBD/LinearUpdate: "0.1"        # Aggiorna ogni 10cm movimento
