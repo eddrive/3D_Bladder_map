@@ -41,26 +41,24 @@ for pkg in "${required_packages[@]}"; do
 done
 
 # Variables for calibration and driver launch
-ROBOT_IP=${ROBOT_IP:-"141.64.75.56"}  # Overrideable via environment variable
+ROBOT_IP=${ROBOT_IP:-"141.64.75.56"}
 TARGET_FILENAME=${TARGET_FILENAME:-"/root/my_robot_calibration.yaml"}
 UR_TYPE=${UR_TYPE:-"ur3"}
 DESCRIPTION_PKG=${DESCRIPTION_PKG:-"ur3_endoscope_description"}
 DESCRIPTION_FILE=${DESCRIPTION_FILE:-"ur3_endoscope.urdf.xacro"}
-
-# Define the path to your camera calibration YAML file
 CAMERA_CALIBRATION_FILE=${CAMERA_CALIBRATION_FILE:-"/root/endoscope_calibration.yaml"}
 
-# Step 1: Start the calibration
+# Step 1: Calibration
 echo "Starting robot calibration with ROBOT_IP=${ROBOT_IP}..."
 ros2 launch ur_calibration calibration_correction.launch.py \
     robot_ip:=${ROBOT_IP} target_filename:=${TARGET_FILENAME}
-
 echo "Calibration completed successfully!"
 
-# Step 2: Start the endoscope driver
+# Step 2: Camera driver in background
+echo "Starting camera driver..."
 ros2 run v4l2_camera v4l2_camera_node --ros-args \
     -p video_device:="/dev/video2" \
-    -p image_size:="[1920, 1080]" \
+    -p image_size:="[1280, 720]" \
     -p pixel_format:="YUYV" \
     -p framerate:=30.0 \
     -p brightness:=-11 \
@@ -71,11 +69,17 @@ ros2 run v4l2_camera v4l2_camera_node --ros-args \
     -r image_raw:="endoscope/image_raw" \
     -r camera_info:="endoscope/camera_info" &
 
-# Step 3: Start the robot driver
+# Step 3: Robot driver
+echo "Starting robot driver..."
 ros2 launch ${DESCRIPTION_PKG} custom_ur_control.launch.py \
     ur_type:=${UR_TYPE} \
     robot_ip:=${ROBOT_IP} \
-    kinematics_params_file:=${TARGET_FILENAME}
+    kinematics_params_file:=${TARGET_FILENAME} &
+sleep 2
 
-# Pass control to any additional commands specified at runtime
+# Step 4: MoveIt!
+echo "Starting MoveIt!..."
+ros2 launch ur3_endoscope_moveit_config ur3_endoscope_moveit_launch.py
+
+# Keep script running if needed
 exec "$@"
