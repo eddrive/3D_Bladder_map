@@ -353,7 +353,7 @@ def launch_setup(context, *args, **kwargs):
         arguments=get_camera_transform_args(camera_config_file_path) 
     )
 
-    # static_tf_map_odom = Node(
+    # static_tf_world_map = Node(
     #     package='tf2_ros',
     #     executable='static_transform_publisher',
     #     name='map_to_odom_static',
@@ -434,7 +434,7 @@ def launch_setup(context, *args, **kwargs):
         robot_state_publisher_node,
         rviz_node,
         static_tf_publisher_camera,
-        # static_tf_map_odom, 
+        # static_tf_world_map, 
         # static_tf_odom_baselink,
         static_tf_world_baselink,
     ] + controller_spawners

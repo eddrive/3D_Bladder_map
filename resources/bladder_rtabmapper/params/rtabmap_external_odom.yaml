@@ -1,70 +1,89 @@
 rtabmap:
   ros__parameters:
-    # === FRAME CONFIGURATION ===
+    # === FRAME CONFIGURATION === (invariata)
     frame_id: "camera"
     odom_frame_id: "base_link"
-    map_frame_id: "world"
+    map_frame_id: "base_link"
     camera_frame_id: "camera"
     optical_frame_id: "camera"
     
-    # # === SUBSCRIPTION SETTINGS (solo RGB + odometria esterna) ===
+    # === SUBSCRIPTION SETTINGS ===
     subscribe_rgb: true
-    subscribe_depth: true      
-    subscribe_stereo: false     
-    subscribe_rgbd: false     
-    subscribe_odom: true       
-    subscribe_odom_info: false  
-    subscribe_scan: false        
-    subscribe_scan_cloud: false 
-
-    # # === ODOMETRIA ESTERNA (FONDAMENTALE) ===
-    Vis/EstimationType: "1"         # 0 = disabilita odometria visiva (usa esterna)
-    odom_sensor_sync: true        # Sincronizza con odometria esterna
-
-     # === MASCHERA ENDOSCOPIO ===
-    Vis/Mask: "/root/endoscope_mask.png"     # Maschera per features visive
-    Kp/Mask: "/root/endoscope_mask.png"      # Maschera per keypoints
+    subscribe_depth: true
+    subscribe_stereo: false
+    subscribe_rgbd: false
+    subscribe_odom: true
+    subscribe_odom_info: false
+    subscribe_scan: false
+    subscribe_scan_cloud: false
     
-    # # === MAPPATURA 3D (CORRETTA) ===
-    Grid/3D: "true"                 # ABILITA mappatura 3D
-    RGBD/CreateOccupancyGrid: "true" # Crea griglia di occupancy
-    Grid/CellSize: "0.05"           # Risoluzione griglia (5cm)
-    Grid/RangeMax: "5.0"            # Raggio massimo mapping
-    Grid/MaxObstacleHeight: "2.0"   # Altezza max ostacoli (2m)
-    Grid/MaxGroundHeight: "0.2"     # Soglia terreno superiore (20cm)
-    Grid/MinGroundHeight: "-0.2"    # Soglia terreno inferiore (-20cm)
+    # === ODOMETRIA ESTERNA ===
+    Vis/EstimationType: "1"
+    odom_sensor_sync: true
     
-    # # === VISUAL FEATURES (per RGB monoculare) ===
-    Vis/MaxFeatures: "400"          # Numero features per frame
-    Vis/MinInliers: "15"            # Minimo inliers per match
-    Vis/MaxDepth: "4.0"             # Profondità max (stimata)
-    Vis/MinDepth: "0.1"             # Profondità min
-    Kp/DetectorStrategy: "1"        # SIFT features
-    Vis/FeatureType: "1"  
+    # === MASCHERA ENDOSCOPIO ===
+    Vis/Mask: "/root/endoscope_mask.png"
+    Kp/Mask: "/root/endoscope_mask.png"
+    
+    # === MAPPATURA 3D ===
+    Grid/3D: "true"
+    RGBD/CreateOccupancyGrid: "true"
+    Grid/CellSize: "0.01"  # 1cm per oggetti piccoli (era 0.05)
+    Grid/RangeMax: "1.0"   # Ridotto a 1m per oggetti piccoli (era 5.0)
+    Grid/MaxObstacleHeight: "0.5"  # Ridotto (era 2.0)
+    Grid/MaxGroundHeight: "0.05"   # Ridotto (era 0.2)
+    Grid/MinGroundHeight: "-0.05"  # Ridotto (era -0.2)
+    
+    # === DEPTH SIMULATA - RIDURRE AFFIDAMENTO ===
+    RGBD/OptimizeMaxError: "10.0"    # Tollera più errori depth
+    Grid/DepthDecimation: "4"        # Usa meno punti depth
+    Grid/NoiseFilteringRadius: "0.02" # Filtra rumore depth (2cm)
+    Grid/NoiseFilteringMinNeighbors: "2" # Min vicini per validare punto
+    Vis/DepthAsMask: "false"         # Non usare depth come maschera
+    RGBD/ProximityPathMaxNeighbors: "1"  # Riduce dipendenza da depth
+    
+    # === VISUAL FEATURES (più conservative) ===
+    Vis/MaxFeatures: "600"    # Aumentato (era 400)
+    Vis/MinInliers: "25"      # Più conservativo (era 15)
+    Vis/MaxDepth: "1.0"       # Ridotto per oggetti piccoli (era 4.0)
+    Vis/MinDepth: "0.05"      # Più conservativo (era 0.1)
+    Kp/DetectorStrategy: "1"  # SIFT
+    Vis/FeatureType: "1"
     Mem/UseOdomFeatures: "false"
     
-    # # === LOOP CLOSURE ===
-    Mem/NotLinkedNodesKept: "false" # Rimuovi nodi non collegati
-    Mem/STMSize: "30"               # Dimensione memoria breve termine
-    RGBD/NeighborLinkRefining: "true" # Raffina link tra nodi vicini
+    # === FEATURE MATCHING PIÙ RIGOROSO ===
+    Vis/CorGuessWinSize: "40"     # Finestra correlazione più grande
+    Vis/CorNNType: "1"            # Kd-Tree per matching
+    Vis/CorNNDR: "0.6"            # Ratio test più rigoroso (default 0.8)
+    Kp/NNStrategy: "1"            # Kd-tree per keypoints
+    Kp/IncrementalFlann: "true"   # FLANN incrementale
     
-    # # === PERFORMANCE ===
-    approx_sync: true             # Sincronizzazione approssimativa
-    queue_size: 50                # Dimensione buffer
-    sync_queue_size: 50         # NUOVO parametro
-    topic_queue_size: 50        # NUOVO parametro
-    publish_tf: true             # Pubblica trasformazioni
-    tf_delay: 0.05                # Ritardo TF
+    # === LOOP CLOSURE PIÙ CONSERVATIVO ===
+    Mem/NotLinkedNodesKept: "false"
+    Mem/STMSize: "20"             # Ridotto (era 30)
+    RGBD/NeighborLinkRefining: "true"
+    Rtabmap/LoopThr: "0.15"       # Soglia più alta per loop closure (default 0.11)
+    Vis/InlierDistance: "0.05"    # Distanza inlier più rigorosa per oggetti piccoli
+    
+    # === AGGIORNAMENTI PIÙ FREQUENTI PER OGGETTI PICCOLI ===
+    RGBD/LinearUpdate: "0.02"     # Aggiorna ogni 2cm (era 0.1)
+    RGBD/AngularUpdate: "0.05"    # Aggiorna ogni 0.05 rad (era 0.1)
+    Rtabmap/DetectionRate: "1.0"  # Aumentata frequenza detection (era 0.5)
+    
+    # === PERFORMANCE ===
+    approx_sync: true
+    queue_size: 50
+    sync_queue_size: 50
+    topic_queue_size: 50
+    publish_tf: false
+    tf_delay: 0.05
     approx_sync_max_interval: 0.5
     
-    # # === OPTIMIZER (3D SLAM) ===
-    Optimizer/Strategy: "1"         # g2o optimizer
-    Optimizer/Iterations: "20"      # Iterazioni ottimizzazione
-    RGBD/OptimizeFromGraphEnd: "false" # Ottimizza da inizio grafo
+    # === OPTIMIZER ===
+    Optimizer/Strategy: "1"
+    Optimizer/Iterations: "30"        # Più iterazioni (era 20)
+    RGBD/OptimizeFromGraphEnd: "false"
     
-    # # === MAPPING SPECIFICO ===
-    Rtabmap/DetectionRate: "0.5"    # Frequenza detection
-    Rtabmap/TimeThr: "0"            # No limite tempo
-    Rtabmap/MemoryThr: "0"          # No limite memoria
-    RGBD/LinearUpdate: "0.1"        # Aggiorna ogni 10cm movimento
-    RGBD/AngularUpdate: "0.1"       # Aggiorna ogni 0.1 rad rotazione
+    # === MEMORIA E TIMING ===
+    Rtabmap/TimeThr: "0"
+    Rtabmap/MemoryThr: "0"
