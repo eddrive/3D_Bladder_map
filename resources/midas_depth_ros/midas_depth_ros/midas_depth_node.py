@@ -31,7 +31,7 @@ class MidasDepthNode(Node):
     
     def __init__(self):
         super().__init__('midas_depth_node')
-        
+
         # Declare parameters
         self.declare_parameter('model_type', 'dpt_hybrid_384')
         self.declare_parameter('input_resolution', [384, 384])
@@ -40,9 +40,10 @@ class MidasDepthNode(Node):
         self.declare_parameter('use_half_precision', True)
         self.declare_parameter('apply_vesica_preprocessing', True)
         self.declare_parameter('depth_scale_factor', 1000.0)  # Convert to mm
-        self.declare_parameter('max_depth', 2000.0)  # mm, more realistic for endoscope
+        self.declare_parameter('max_depth', 200.0)            # 20cm per vescica
+        self.declare_parameter('min_depth', 1.0)              # 1mm minimo
         self.declare_parameter('endoscope_mask_path', '/root/endoscope_mask.png')
-        
+
         # Get parameters
         self.model_type = self.get_parameter('model_type').value
         self.input_res = self.get_parameter('input_resolution').value
@@ -52,6 +53,7 @@ class MidasDepthNode(Node):
         self.vesica_preprocessing = self.get_parameter('apply_vesica_preprocessing').value
         self.depth_scale = self.get_parameter('depth_scale_factor').value
         self.max_depth = self.get_parameter('max_depth').value
+        self.min_depth = self.get_parameter('min_depth').value
         self.mask_path = self.get_parameter('endoscope_mask_path').value
         
         # Initialize fisheye correction maps
@@ -170,6 +172,13 @@ class MidasDepthNode(Node):
         )
         self.depth_corrected_info_pub = self.create_publisher(
             CameraInfo, '/endoscope/depth_corrected/camera_info', 10
+        )
+
+        self.rgb_corrected_pub = self.create_publisher(
+            Image, '/endoscope/image_corrected', 10
+        )
+        self.rgb_corrected_info_pub = self.create_publisher(
+            CameraInfo, '/endoscope/camera_info_corrected', 10  
         )
     
         # Performance monitoring
@@ -334,20 +343,42 @@ class MidasDepthNode(Node):
             return None, None
     
     def postprocess_depth_corrected(self, depth, corrected_shape):
-        """Post-process su depth corretta (senza ridistorsione)"""
+        """Post-process su depth corretta con range clipping per vescica"""
         # Resize alla forma corretta
         depth_resized = cv2.resize(
-            depth, 
-            (corrected_shape[1], corrected_shape[0]), 
+            depth,
+            (corrected_shape[1], corrected_shape[0]),
             interpolation=cv2.INTER_CUBIC
         )
         
-        # Normalizza e scala
+        # Normalizza e scala al range completo
         depth_normalized = cv2.normalize(depth_resized, None, 0, 1, cv2.NORM_MINMAX)
         depth_mm = self.max_depth * (1.0 - depth_normalized)
         
+        # AGGIUNTO: Applica range di profondità min/max
+        depth_mm = np.clip(depth_mm, self.min_depth, self.max_depth)
+        
+        # AGGIUNTO: Azzera valori fuori range per essere più netto
+        depth_mm = np.where(
+            (depth_mm >= self.min_depth) & (depth_mm <= self.max_depth), 
+            depth_mm, 
+            0
+        )
+        
         # Smooth su geometria corretta
         depth_smooth = cv2.medianBlur(depth_mm.astype(np.float32), 5)
+        
+        # AGGIUNTO: Debug info sui punti validi (ogni 30 frame)
+        if hasattr(self, 'frame_count') and self.frame_count % 30 == 0:
+            valid_points = np.count_nonzero(depth_smooth > 0)
+            total_points = depth_smooth.size
+            depth_min = np.min(depth_smooth[depth_smooth > 0]) if valid_points > 0 else 0
+            depth_max = np.max(depth_smooth[depth_smooth > 0]) if valid_points > 0 else 0
+            
+            self.get_logger().info(
+                f'Depth stats: {valid_points}/{total_points} valid points ({100*valid_points/total_points:.1f}%), '
+                f'range: {depth_min:.1f}-{depth_max:.1f}mm'
+            )
         
         return depth_smooth
     
@@ -375,7 +406,7 @@ class MidasDepthNode(Node):
         return depth_array
     
     def image_callback(self, image_msg, camera_info_msg):
-        """Callback principale con doppia pubblicazione depth"""
+        """Callback con pubblicazione RGB + depth corrette"""
         try:
             cv_image = self.bridge.imgmsg_to_cv2(image_msg, image_msg.encoding)
             
@@ -383,35 +414,32 @@ class MidasDepthNode(Node):
                 self.get_logger().error("Image conversion failed!")
                 return
             
-            # Stima ENTRAMBE le depth
-            depth_corrected, depth_raw = self.estimate_depth_dual(cv_image, camera_info_msg)
+            # 1. CORREGGI RGB fisheye
+            corrected_rgb = self.undistort_fisheye(cv_image, camera_info_msg)
             
-            if depth_corrected is not None and depth_raw is not None:
-                
-                # === PUBBLICAZIONE 1: DEPTH RAW (per RTABMap) ===
-                depth_raw_masked = self.apply_endoscope_mask(depth_raw, cv_image.shape)
-                depth_raw_msg = self.bridge.cv2_to_imgmsg(depth_raw_masked.astype(np.uint16), "16UC1")
-                depth_raw_msg.header = image_msg.header
-                self.depth_raw_pub.publish(depth_raw_msg)
-                
-                # Camera info raw (identica all'input, con distorsione fisheye)
-                camera_info_raw = camera_info_msg
-                camera_info_raw.header = image_msg.header
-                self.depth_raw_info_pub.publish(camera_info_raw)
-                
-                # === PUBBLICAZIONE 2: DEPTH CORRECTED (qualità migliore) ===
+            # 2. PUBBLICA RGB CORRETTA
+            rgb_corrected_msg = self.bridge.cv2_to_imgmsg(corrected_rgb, image_msg.encoding)
+            rgb_corrected_msg.header = image_msg.header
+            self.rgb_corrected_pub.publish(rgb_corrected_msg)
+            
+            # 3. STIMA DEPTH (usa il metodo esistente ma solo depth corretta)
+            depth_corrected, _ = self.estimate_depth_dual(cv_image, camera_info_msg)
+            
+            if depth_corrected is not None:
+                # 4. PUBBLICA DEPTH CORRETTA
                 depth_corrected_masked = self.apply_endoscope_mask(depth_corrected)
                 depth_corrected_msg = self.bridge.cv2_to_imgmsg(depth_corrected_masked.astype(np.uint16), "16UC1")
                 depth_corrected_msg.header = image_msg.header
                 self.depth_corrected_pub.publish(depth_corrected_msg)
                 
-                # Camera info corrected (senza distorsione fisheye)
+                # 5. CAMERA INFO CORRETTA (senza distorsione)
                 camera_info_corrected = self.create_corrected_camera_info(camera_info_msg)
                 camera_info_corrected.header = image_msg.header
+                self.rgb_corrected_info_pub.publish(camera_info_corrected)
                 self.depth_corrected_info_pub.publish(camera_info_corrected)
                 
                 self.frame_count += 1
-                
+            
         except Exception as e:
             self.get_logger().error(f'Callback failed: {str(e)}')
     

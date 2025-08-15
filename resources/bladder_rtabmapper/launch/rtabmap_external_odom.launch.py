@@ -6,6 +6,14 @@ from launch_ros.substitutions import FindPackageShare
 
 def generate_launch_description():
     return LaunchDescription([
+        DeclareLaunchArgument('parent_frame',
+            default_value='base_link',
+            description='TF parent frame (for odom publisher)'),
+        
+        DeclareLaunchArgument('child_frame',
+            default_value='camera',
+            description='TF child frame (for odom publisher)'),
+        
         DeclareLaunchArgument('params_file',
             default_value=PathJoinSubstitution([
                 FindPackageShare('bladder_rtabmapper'),
@@ -13,39 +21,8 @@ def generate_launch_description():
                 'rtabmap_external_odom.yaml'
             ]),
             description='Full path to the RTAB-Map parameters YAML file'),
-            
-        DeclareLaunchArgument('rgb_topic',
-            default_value='/endoscope/image_raw',
-            description='RGB image topic'),
-            
-        DeclareLaunchArgument('depth_topic',
-            default_value='/endoscope/depth/image_raw',
-            description='Depth image topic'),
-            
-        DeclareLaunchArgument('camera_info_topic',
-            default_value='/endoscope/camera_info',
-            description='Camera info topic'),
-            
-        DeclareLaunchArgument('depth_camera_info_topic',
-            default_value='/endoscope/depth/camera_info',
-            description='Depth camera info topic'),
-            
-        DeclareLaunchArgument('odom_topic',
-            default_value='/odom',
-            description='Odometry topic'),
-            
-        DeclareLaunchArgument('frame_id',
-            default_value='camera',
-            description='Fixed frame id for RTAB-Map'),
-            
-        DeclareLaunchArgument('parent_frame',
-            default_value='base_link',
-            description='TF parent frame (for odom publisher)'),
-            
-        DeclareLaunchArgument('child_frame',
-            default_value='camera',
-            description='TF child frame (for odom publisher)'),
-
+        
+        # RTABMap node - tutti i parametri dal YAML
         Node(
             package='rtabmap_slam',
             executable='rtabmap',
@@ -55,14 +32,14 @@ def generate_launch_description():
                 LaunchConfiguration('params_file')
             ],
             remappings=[
-                ('rgb/image', LaunchConfiguration('rgb_topic')),
-                ('rgb/camera_info', LaunchConfiguration('camera_info_topic')),
-                ('depth/image', LaunchConfiguration('depth_topic')),
-                ('depth/camera_info', LaunchConfiguration('depth_camera_info_topic')),
-                ('odom', LaunchConfiguration('odom_topic'))
+                ('rgb/image', '/endoscope/image_corrected'),
+                ('rgb/camera_info', '/endoscope/camera_info_corrected'),
+                ('depth/image', '/endoscope/depth_corrected/image_raw'),
+                ('depth/camera_info', '/endoscope/depth_corrected/camera_info'),
+                ('odom', '/odom')
             ]
         ),
-
+        
         Node(
             package='bladder_rtabmapper',
             executable='tf_to_odom_publisher',

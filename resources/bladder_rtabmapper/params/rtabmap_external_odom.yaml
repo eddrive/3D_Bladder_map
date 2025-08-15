@@ -87,3 +87,11 @@ rtabmap:
     # === MEMORIA E TIMING ===
     Rtabmap/TimeThr: "0"
     Rtabmap/MemoryThr: "0"
+    
+    # === CAMERA CALIBRATION (disabilita correzioni) ===
+    camera_calibrated: true
+    rectify_rgb: false
+    rectify_depth: false
+    stereo_calibration: false
+    
+    
