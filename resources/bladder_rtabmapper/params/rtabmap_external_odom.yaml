@@ -1,8 +1,8 @@
 rtabmap:
   ros__parameters:
-    # === FRAME CONFIGURATION === (invariata)
+    # === FRAME CONFIGURATION === 
     frame_id: "camera"
-    odom_frame_id: "base_link"
+    odom_frame_id: "base_link" 
     map_frame_id: "base_link"
     camera_frame_id: "camera"
     optical_frame_id: "camera"
@@ -17,81 +17,137 @@ rtabmap:
     subscribe_scan: false
     subscribe_scan_cloud: false
     
+    # === TOPIC REMAPPING PER MIDAS ===
+    # Usa i topic corretti dal tuo nodo MiDaS
+    rgb_topic: "/endoscope/image_corrected"  # RGB corretta (fisheye corretto)
+    depth_topic: "/endoscope/depth_corrected/image_raw"  # Depth corretta
+    camera_info_topic: "/endoscope/camera_info_corrected"  # Camera info corretta
+    
     # === ODOMETRIA ESTERNA ===
-    Vis/EstimationType: "1"
+    Vis/EstimationType: "1"  # Usa odometria esterna
     odom_sensor_sync: true
     
-    # === MASCHERA ENDOSCOPIO ===
+    # === MASCHERA ENDOSCOPIO (coerente con MiDaS) ===
     Vis/Mask: "/root/endoscope_mask.png"
     Kp/Mask: "/root/endoscope_mask.png"
     
-    # === MAPPATURA 3D ===
+    # === DEPTH PARAMETERS (COERENTI CON MIDAS) ===
+    # Range depth identico al tuo nodo MiDaS
+    Vis/MaxDepth: "0.15"     # 150mm = max_depth MiDaS 
+    Vis/MinDepth: "0.01"     # 10mm = min_depth MiDaS
+    RGBD/MaxDepth: "0.15"    # Coerente con MiDaS
+    RGBD/MinDepth: "0.01"    # Coerente con MiDaS
+    
+    # Gestione depth simulata più robusta
+    Grid/DepthDecimation: "1"  # Non decimare (MiDaS già ottimizzato)
+    RGBD/OptimizeMaxError: "0.02"  # 2cm errore max (vescica piccola)
+    Grid/NoiseFilteringRadius: "0.005"  # 5mm filtro rumore (vescica fine)
+    Grid/NoiseFilteringMinNeighbors: "3"  # Più rigoroso per qualità
+    
+    # === MAPPATURA 3D VESCICA ===
     Grid/3D: "true"
     RGBD/CreateOccupancyGrid: "true"
-    Grid/CellSize: "0.01"  # 1cm per oggetti piccoli (era 0.05)
-    Grid/RangeMax: "1.0"   # Ridotto a 1m per oggetti piccoli (era 5.0)
-    Grid/MaxObstacleHeight: "0.5"  # Ridotto (era 2.0)
-    Grid/MaxGroundHeight: "0.05"   # Ridotto (era 0.2)
-    Grid/MinGroundHeight: "-0.05"  # Ridotto (era -0.2)
+    Grid/CellSize: "0.002"   # 2mm per dettagli vescica (era 1cm)
+    Grid/RangeMax: "0.15"    # Match con max_depth MiDaS
+    Grid/MaxObstacleHeight: "0.15"  # Altezza vescica
+    Grid/MaxGroundHeight: "0.01"    # 1cm soglia ground
+    Grid/MinGroundHeight: "-0.01"   # -1cm soglia ground
     
-    # === DEPTH SIMULATA - RIDURRE AFFIDAMENTO ===
-    RGBD/OptimizeMaxError: "10.0"    # Tollera più errori depth
-    Grid/DepthDecimation: "4"        # Usa meno punti depth
-    Grid/NoiseFilteringRadius: "0.02" # Filtra rumore depth (2cm)
-    Grid/NoiseFilteringMinNeighbors: "2" # Min vicini per validare punto
-    Vis/DepthAsMask: "false"         # Non usare depth come maschera
-    RGBD/ProximityPathMaxNeighbors: "1"  # Riduce dipendenza da depth
+    # === VISUAL FEATURES (OTTIMIZZATE PER VESCICA) ===
+    Vis/MaxFeatures: "800"   # Più features per superficie vescica
+    Vis/MinInliers: "15"     # Meno rigoroso (superficie vescica povera)
+    Kp/DetectorStrategy: "1" # SIFT (robusto per tessuti)
+    Vis/FeatureType: "1"     # SIFT
     
-    # === VISUAL FEATURES (più conservative) ===
-    Vis/MaxFeatures: "600"    # Aumentato (era 400)
-    Vis/MinInliers: "25"      # Più conservativo (era 15)
-    Vis/MaxDepth: "1.0"       # Ridotto per oggetti piccoli (era 4.0)
-    Vis/MinDepth: "0.05"      # Più conservativo (era 0.1)
-    Kp/DetectorStrategy: "1"  # SIFT
-    Vis/FeatureType: "1"
-    Mem/UseOdomFeatures: "false"
+    # Soglie specifiche per tessuto vescica
+    Kp/MaxFeatures: "800"
+    Kp/TfIdfLikelihoodUsed: "false"  # Disabilita per tessuti simili
+    Kp/WordsPerImage: "200"  # Meno parole per superficie uniforme
     
-    # === FEATURE MATCHING PIÙ RIGOROSO ===
-    Vis/CorGuessWinSize: "40"     # Finestra correlazione più grande
-    Vis/CorNNType: "1"            # Kd-Tree per matching
-    Vis/CorNNDR: "0.6"            # Ratio test più rigoroso (default 0.8)
-    Kp/NNStrategy: "1"            # Kd-tree per keypoints
-    Kp/IncrementalFlann: "true"   # FLANN incrementale
+    # === FEATURE MATCHING PER TESSUTI BIOLOGICI ===
+    Vis/CorGuessWinSize: "50"    # Finestra più grande (tessuti deformabili)
+    Vis/CorNNType: "1"           # Kd-Tree
+    Vis/CorNNDR: "0.75"          # Meno rigoroso per tessuti (era 0.6)
+    Kp/NNStrategy: "1"           # Kd-tree
+    Kp/IncrementalFlann: "true"
     
-    # === LOOP CLOSURE PIÙ CONSERVATIVO ===
-    Mem/NotLinkedNodesKept: "false"
-    Mem/STMSize: "20"             # Ridotto (era 30)
+    # === LOOP CLOSURE VESCICA ===
+    # Più conservativo per superficie vescica uniforme
+    Rtabmap/LoopThr: "0.2"       # Soglia alta (superficie uniforme)
+    Vis/InlierDistance: "0.01"   # 1cm inlier per vescica piccola
+    Mem/NotLinkedNodesKept: "true"  # Mantieni nodi per vescica
+    Mem/STMSize: "15"            # STM più piccola per vescica
     RGBD/NeighborLinkRefining: "true"
-    Rtabmap/LoopThr: "0.15"       # Soglia più alta per loop closure (default 0.11)
-    Vis/InlierDistance: "0.05"    # Distanza inlier più rigorosa per oggetti piccoli
     
-    # === AGGIORNAMENTI PIÙ FREQUENTI PER OGGETTI PICCOLI ===
-    RGBD/LinearUpdate: "0.02"     # Aggiorna ogni 2cm (era 0.1)
-    RGBD/AngularUpdate: "0.05"    # Aggiorna ogni 0.05 rad (era 0.1)
-    Rtabmap/DetectionRate: "1.0"  # Aumentata frequenza detection (era 0.5)
+    # Gestione multi-sessione per rivisitare vescica
+    Mem/InitWMWithAllNodes: "true"
+    RGBD/ProximityBySpace: "true"
+    RGBD/ProximityMaxGraphDepth: "0"  # Usa tutti i nodi
     
-    # === PERFORMANCE ===
-    approx_sync: true
-    queue_size: 50
-    sync_queue_size: 50
-    topic_queue_size: 50
-    publish_tf: false
-    tf_delay: 0.05
-    approx_sync_max_interval: 0.5
+    # === AGGIORNAMENTI VESCICA (molto sensibili) ===
+    RGBD/LinearUpdate: "0.005"   # Aggiorna ogni 5mm (vescica piccola)
+    RGBD/AngularUpdate: "0.02"   # Aggiorna ogni 0.02 rad (sensibile)
+    Rtabmap/DetectionRate: "2.0" # Detection più frequente per vescica
     
-    # === OPTIMIZER ===
-    Optimizer/Strategy: "1"
-    Optimizer/Iterations: "30"        # Più iterazioni (era 20)
+    # === OPTIMIZATION PER VESCICA ===
+    Optimizer/Strategy: "1"      # g2o
+    Optimizer/Iterations: "50"   # Più iterazioni per precision vescica
+    Optimizer/Robust: "true"     # Robusto per outlier depth simulata
     RGBD/OptimizeFromGraphEnd: "false"
     
-    # === MEMORIA E TIMING ===
-    Rtabmap/TimeThr: "0"
-    Rtabmap/MemoryThr: "0"
+    # === PERFORMANCE E SYNC ===
+    approx_sync: true
+    queue_size: 30               # Ridotto per real-time
+    sync_queue_size: 30
+    topic_queue_size: 30
+    publish_tf: false            # Disabilita (usi odometria esterna)
+    tf_delay: 0.02               # Più veloce per vescica
+    approx_sync_max_interval: 0.1  # Sync più stretto
     
-    # === CAMERA CALIBRATION (disabilita correzioni) ===
-    camera_calibrated: true
-    rectify_rgb: false
-    rectify_depth: false
+    # === MEMORY MANAGEMENT VESCICA ===
+    Rtabmap/TimeThr: "0"         # No limit tempo
+    Rtabmap/MemoryThr: "300"     # Limit memoria (vescica non huge)
+    Mem/RehearsalSimilarity: "0.2"  # Bassa per superficie vescica
+    Mem/ImagePreDecimation: "1"  # Non decimare (già fatto da MiDaS)
+    Mem/ImagePostDecimation: "1" # Non decimare
+    
+    # === CALIBRATION (DISABILITATA - MIDAS GIÀ CORREGGE) ===
+    camera_calibrated: true      # MiDaS già corregge fisheye
+    rectify_rgb: false           # MiDaS pubblica già corretta
+    rectify_depth: false         # MiDaS pubblica già corretta
     stereo_calibration: false
     
+    # === VESCICA-SPECIFIC PARAMETERS ===
+    # Disabilita ground plane (vescica è 3D sphere-like)
+    Grid/FromDepth: "true"
+    Grid/GroundIsObstacle: "false"  # Vescica non ha "ground"
+    Grid/Scan2dUnknownSpaceFilled: "false"
     
+    # Gestione movimenti endoscopio
+    Odom/Strategy: "0"           # Disabilita odometria visuale (usi esterna)
+    Odom/ImageDecimation: "1"    # Non decimare per precision
+    
+    # === QUALITY CONTROL ===
+    RGBD/SavedLocalizationIgnored: "false"
+    RGBD/MarkerDetection: "false"  # No markers in vescica
+    Vis/DepthAsMask: "false"       # Non usare depth come mask
+    
+    # === LOGGING E DEBUG ===
+    Rtabmap/StatisticLogged: "true"
+    Rtabmap/StatisticLoggedHeaders: "true"
+    
+    # === ADVANCED VESCICA SETTINGS ===
+    # Gestione deformazioni tessuto vescica
+    RGBD/LocalBundleOnLoopClosure: "true"   # Bundle adjustment locale
+    RGBD/LocalImmunizationRatio: "0.2"      # Immunizzazione locale
+    Vis/BundleAdjustment: "1"               # Bundle adjustment
+    
+    # Gestione illuminazione endoscopio variabile
+    Kp/NndrRatio: "0.75"        # Meno rigoroso per illuminazione
+    Kp/RangeMax: "0.15"         # Range vescica
+    Kp/MaxFeatureDistanceToIntermediateNode: "0.05"  # 5cm max per vescica
+    
+    # === EXPORT E SAVE ===
+    # Per salvare mappe vescica
+    Grid/MapFrameProjection: "false"  # Mantieni frame camera
+    Database/ReducedOnStartup: "false"  # Non ridurre database vescica
