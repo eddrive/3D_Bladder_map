@@ -32,7 +32,7 @@ fi
 
 # Check for required packages
 echo "Checking for installed packages..."
-required_packages=("ur_robot_driver" "ur_calibration" "ur3_endoscope_description" "bladder_rtabmapper" "midas_depth_ros")
+required_packages=("ur_robot_driver" "ur_calibration" "ur3_endoscope_description" "bladder_rtabmapper" "depth_anything")
 
 for pkg in "${required_packages[@]}"; do
     if ros2 pkg list 2>/dev/null | grep -q "^${pkg}$"; then
@@ -80,7 +80,7 @@ sleep 3
 
 # Step 3: Start MiDaS depth estimation node
 echo "Starting MiDaS depth estimation..."
-ros2 launch midas_depth_ros midas_launch.py &
+ros2 launch depth_anything depth_anything.launch.py &
 
 # Wait for MiDaS to initialize
 echo "Waiting for MiDaS initialization..."

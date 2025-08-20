@@ -1,9 +1,9 @@
 camera_transform:
   # Static transform from wrist_3_link to camera
   translation:
-    x: -0.00534
-    y: 0.37727
-    z: 0.21681
+    x: -0.00815
+    y: 0.33528
+    z: 0.22184
   rotation:
     x: 0.0
     y: 0.0

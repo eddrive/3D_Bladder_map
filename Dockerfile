@@ -2,13 +2,10 @@
 FROM nvidia/cuda:11.8.0-cudnn8-devel-ubuntu22.04
 
 # Prevent interactive prompts during package installation
-
 ENV DEBIAN_FRONTEND=noninteractive
-
 ENV TZ=Europe/Rome
 
 # Configure timezone non-interactively
-
 RUN ln -snf /usr/share/zoneinfo/$TZ /etc/localtime && echo $TZ > /etc/timezone
 
 # Install ROS2 Humble from source
@@ -55,17 +52,19 @@ RUN apt-get update && apt-get install -y \
 # Install PyTorch with CUDA 11.8 support (compatible with base image)
 RUN pip install torch torchvision torchaudio --index-url https://download.pytorch.org/whl/cu118
 
-# Install Python dependencies for MiDaS depth estimation
-RUN pip install opencv-python timm einops matplotlib pillow "numpy<2"
+# CHANGE: Install Python dependencies for Depth-Anything V2 instead of MiDaS
+RUN pip install opencv-python timm einops matplotlib pillow "numpy<2" transformers huggingface-hub
 
-# Clone MiDaS repository
-RUN git clone https://github.com/isl-org/MiDaS.git /midas
-WORKDIR /midas
+# CHANGE: Clone Depth-Anything V2 repository instead of MiDaS
+RUN git clone https://github.com/DepthAnything/Depth-Anything-V2.git /depth_anything_v2
+WORKDIR /depth_anything_v2
 
-# Pre-download MiDaS models during build to avoid runtime delays
-RUN python3 -c "import torch; torch.hub.load('intel-isl/MiDaS', 'DPT_Hybrid', pretrained=True, trust_repo=True)" || echo "DPT_Hybrid download failed, will retry at runtime"
-RUN python3 -c "import torch; torch.hub.load('intel-isl/MiDaS', 'DPT_Large', pretrained=True, trust_repo=True)" || echo "DPT_Large download failed, will retry at runtime"
-RUN python3 -c "import torch; torch.hub.load('intel-isl/MiDaS', 'MiDaS_small', pretrained=True, trust_repo=True)" || echo "MiDaS_small download failed, will retry at runtime"
+# CHANGE: Create checkpoints directory and download Depth-Anything V2 models
+RUN mkdir -p /depth_anything_v2/checkpoints
+RUN cd /depth_anything_v2/checkpoints && \
+    wget -O depth_anything_v2_vits.pth https://huggingface.co/depth-anything/Depth-Anything-V2-Small/resolve/main/depth_anything_v2_vits.pth || echo "vits download failed" && \
+    wget -O depth_anything_v2_vitb.pth https://huggingface.co/depth-anything/Depth-Anything-V2-Base/resolve/main/depth_anything_v2_vitb.pth || echo "vitb download failed" && \
+    wget -O depth_anything_v2_vitl.pth https://huggingface.co/depth-anything/Depth-Anything-V2-Large/resolve/main/depth_anything_v2_vitl.pth || echo "vitl download failed"
 
 # Create ROS2 workspace
 ENV COLCON_WS=/workspace/bladder_mapper
@@ -76,24 +75,27 @@ WORKDIR $COLCON_WS
 RUN git clone -b humble https://github.com/UniversalRobots/Universal_Robots_ROS2_Driver.git src/Universal_Robots_ROS2_Driver \
     && vcs import src --skip-existing --input src/Universal_Robots_ROS2_Driver/Universal_Robots_ROS2_Driver-not-released.humble.repos
 
+
 # Initialize rosdep (package dependency manager)
 RUN rosdep init || echo "rosdep already initialized"
 RUN rosdep update
 
 # Install ROS2 package dependencies
-RUN rosdep install --ignore-src --from-paths src -y --rosdistro humble
+RUN apt-get update && rosdep install --ignore-src --from-paths src -y --rosdistro humble
+
 
 # Copy project-specific packages
 COPY resources/ur3_endoscope_description $COLCON_WS/src/ur3_endoscope_description
 COPY resources/ur3_endoscope_moveit_config $COLCON_WS/src/ur3_endoscope_moveit_config
 COPY resources/endoscope_calibration.yaml /root/endoscope_calibration.yaml
-COPY resources/endoscope_calibration.yaml /root/endoscope_mask.png
+COPY resources/endoscope_mask.png /root/endoscope_mask.png
 COPY resources/bladder_rtabmapper $COLCON_WS/src/bladder_rtabmapper
-COPY resources/midas_depth_ros $COLCON_WS/src/midas_depth_ros
+# CHANGE: Copy depth_anything package instead of midas_depth_ros
+COPY resources/depth_anything $COLCON_WS/src/depth_anything
 
-# Set environment variables for MiDaS
-ENV MIDAS_PATH=/midas
-ENV PYTHONPATH="/midas"
+# CHANGE: Set environment variables for Depth-Anything V2 instead of MiDaS
+ENV DEPTH_ANYTHING_V2_PATH=/depth_anything_v2
+ENV PYTHONPATH="/depth_anything_v2"
 
 # Source ROS2 setup automatically
 RUN echo "source /opt/ros/humble/setup.bash" >> /root/.bashrc

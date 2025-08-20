@@ -28,8 +28,8 @@ rtabmap:
     odom_sensor_sync: true
     
     # === MASCHERA ENDOSCOPIO (coerente con MiDaS) ===
-    Vis/Mask: "/root/endoscope_mask.png"
-    Kp/Mask: "/root/endoscope_mask.png"
+    # Vis/Mask: "/root/endoscope_mask.png"
+    # Kp/Mask: "/root/endoscope_mask.png"
     
     # === DEPTH PARAMETERS (COERENTI CON MIDAS) ===
     # Range depth identico al tuo nodo MiDaS

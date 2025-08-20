@@ -1,0 +1,46 @@
+<?xml version="1.0"?>
+<?xml-model href="http://download.ros.org/schema/package_format3.xsd" schematypens="http://www.w3.org/2001/XMLSchema"?>
+<package format="3">
+  <name>depth_anything</name>  <!-- CAMBIATO: nuovo nome package -->
+  <version>2.0.0</version>     <!-- AGGIORNATO: versione per Depth-Anything V2 -->
+  <description>Depth-Anything V2 and MiDaS depth estimation nodes for endoscopic bladder mapping with fisheye correction</description>  <!-- AGGIORNATO -->
+  
+  <maintainer email="your-email@example.com">Your Name</maintainer>
+  <license>MIT</license>
+  
+  <!-- Build tool dependencies -->
+  <buildtool_depend>ament_cmake</buildtool_depend>
+  
+  <!-- Core ROS2 dependencies -->
+  <depend>rclpy</depend>
+  <depend>sensor_msgs</depend>
+  <depend>std_msgs</depend>
+  <depend>cv_bridge</depend>
+  <depend>message_filters</depend>
+  <depend>tf2_ros</depend>
+  <depend>geometry_msgs</depend>
+  
+  <!-- NUOVO: Dependencies per Depth-Anything V2 -->
+  <exec_depend>python3-opencv</exec_depend>       <!-- OpenCV per image processing -->
+  <exec_depend>python3-numpy</exec_depend>        <!-- NumPy per array operations -->
+  <exec_depend>python3-torch</exec_depend>        <!-- PyTorch per Depth-Anything V2 -->
+  <exec_depend>python3-torchvision</exec_depend>  <!-- TorchVision per transforms -->
+  <exec_depend>python3-pil</exec_depend>          <!-- PIL per image handling -->
+  
+  <!-- NUOVO: Optional dependencies per features avanzate -->
+  <exec_depend condition="$ROS_PYTHON_VERSION == 3">python3-scipy</exec_depend>      <!-- SciPy per signal processing -->
+  <exec_depend condition="$ROS_PYTHON_VERSION == 3">python3-matplotlib</exec_depend> <!-- Matplotlib per debug plots -->
+  
+  <!-- Test dependencies -->
+  <test_depend>ament_lint_auto</test_depend>
+  <test_depend>ament_lint_common</test_depend>
+  <test_depend>python3-pytest</test_depend>       <!-- NUOVO: per Python testing -->
+  
+  <!-- NUOVO: Documentation dependencies (opzionali) -->
+  <doc_depend>python3-sphinx</doc_depend>
+  <doc_depend>python3-sphinx-rtd-theme</doc_depend>
+  
+  <export>
+    <build_type>ament_cmake</build_type>
+  </export>
+</package>

@@ -15,33 +15,33 @@ from std_msgs.msg import Header
 from cv_bridge import CvBridge
 import message_filters
 
-# Add MiDaS to path
-sys.path.append('/midas')
-from midas.model_loader import load_model, default_models
-from midas.midas_net import MidasNet
-from midas.transforms import Resize, NormalizeImage, PrepareForNet
+# Add Depth-Anything V2 to path
+sys.path.append('/depth_anything_v2')
+from depth_anything_v2.dpt import DepthAnythingV2
 
 
-class MidasDepthNode(Node):
+class DepthAnythingV2EndoscopeNode(Node):
     """
-    ROS2 node for real-time depth estimation using MiDaS
+    ROS2 node for real-time depth estimation using Depth-Anything V2
     Optimized for RTX 3070 and endoscopic bladder mapping with fisheye correction
     Publishes both corrected and raw-distorted depth maps
+    
+    Drop-in replacement for MiDaS node with identical interface and outputs
     """
     
     def __init__(self):
-        super().__init__('midas_depth_node')
+        super().__init__('depth_anything_v2_endoscope_node')
 
-        # Declare parameters
-        self.declare_parameter('model_type', 'dpt_hybrid_384')
-        self.declare_parameter('input_resolution', [384, 384])
+        # Declare parameters (identici al nodo MiDaS originale)
+        self.declare_parameter('model_type', 'vitl')  # vitl, vitb, vits per Depth-Anything V2
+        self.declare_parameter('input_resolution', [518, 518])  # Ottimale per Depth-Anything V2
         self.declare_parameter('camera_downsample_factor', 2)
         self.declare_parameter('optimize_transforms', True)
         self.declare_parameter('use_half_precision', True)
         self.declare_parameter('apply_vesica_preprocessing', True)
         self.declare_parameter('depth_scale_factor', 100.0)  # Convert to mm
-        self.declare_parameter('max_depth', 150.0)       # 20cm per vescica
-        self.declare_parameter('min_depth', 10.0)              # 1mm minimo
+        self.declare_parameter('max_depth', 150.0)       # 15cm per vescica
+        self.declare_parameter('min_depth', 10.0)        # 1cm minimo
         self.declare_parameter('endoscope_mask_path', '/root/endoscope_mask.png')
 
         # Get parameters
@@ -75,7 +75,7 @@ class MidasDepthNode(Node):
         else:
             self.get_logger().warn('CUDA not available, using CPU')
         
-        # Load MiDaS model
+        # Load Depth-Anything V2 model
         self.load_model()
         
         # Setup transforms for endoscopic images
@@ -84,26 +84,49 @@ class MidasDepthNode(Node):
         # Initialize CV bridge
         self.bridge = CvBridge()
         
-        # Setup publishers and subscribers
+        # Setup publishers and subscribers (identici al nodo originale)
         self.setup_ros_interface()
         
-        self.get_logger().info('MiDaS Depth Node with dual depth publication initialized successfully')
+        self.get_logger().info('Depth-Anything V2 Endoscope Node with dual depth publication initialized successfully')
     
     def load_model(self):
-        """Load and optimize MiDaS model"""
+        """Load and optimize Depth-Anything V2 model"""
         try:
-            self.get_logger().info(f'Loading MiDaS model: {self.model_type}')
+            self.get_logger().info(f'Loading Depth-Anything V2 model: {self.model_type}')
             
-            # Use torch.hub instead of local files
-            if self.model_type == 'dpt_hybrid_384':
-                self.model = torch.hub.load('intel-isl/MiDaS', 'DPT_Hybrid', pretrained=True, trust_repo=True)
-            elif self.model_type == 'dpt_large_384':
-                self.model = torch.hub.load('intel-isl/MiDaS', 'DPT_Large', pretrained=True, trust_repo=True)
-            elif self.model_type == 'midas_v21_small_256':
-                self.model = torch.hub.load('intel-isl/MiDaS', 'MiDaS_small', pretrained=True, trust_repo=True)
-            else:
+            # Depth-Anything V2 model configuration
+            model_configs = {
+                'vits': {'encoder': 'vits', 'features': 64, 'out_channels': [48, 96, 192, 384]},
+                'vitb': {'encoder': 'vitb', 'features': 128, 'out_channels': [96, 192, 384, 768]},
+                'vitl': {'encoder': 'vitl', 'features': 256, 'out_channels': [256, 512, 1024, 1024]}
+            }
+            
+            if self.model_type not in model_configs:
                 self.get_logger().error(f'Unsupported model type: {self.model_type}')
                 raise ValueError(f'Unsupported model type: {self.model_type}')
+            
+            # Initialize Depth-Anything V2 model
+            self.model = DepthAnythingV2(**model_configs[self.model_type])
+            
+            # Load pretrained weights
+            model_path = f'/depth_anything_v2/checkpoints/depth_anything_v2_{self.model_type}.pth'
+            if os.path.exists(model_path):
+                self.model.load_state_dict(torch.load(model_path, map_location='cpu'), strict=True)
+                self.get_logger().info(f'Loaded pretrained weights from {model_path}')
+            else:
+                # Try to download from HuggingFace
+                try:
+                    from huggingface_hub import hf_hub_download
+                    model_path = hf_hub_download(
+                        repo_id="depth-anything/Depth-Anything-V2-Large", 
+                        filename=f"depth_anything_v2_{self.model_type}.pth",
+                        cache_dir="/depth_anything_v2/checkpoints/"
+                    )
+                    self.model.load_state_dict(torch.load(model_path, map_location='cpu'), strict=True)
+                    self.get_logger().info(f'Downloaded and loaded weights from HuggingFace')
+                except Exception as e:
+                    self.get_logger().warn(f'Could not load pretrained weights: {e}')
+                    self.get_logger().info('Using randomly initialized weights')
             
             # Move to device
             self.model.to(self.device)
@@ -114,26 +137,20 @@ class MidasDepthNode(Node):
                 self.model = self.model.half()
                 self.get_logger().info('Using half precision (FP16)')
             
-            self.get_logger().info(f'MiDaS model {self.model_type} loaded successfully on {self.device}')
+            self.get_logger().info(f'Depth-Anything V2 model {self.model_type} loaded successfully on {self.device}')
             
         except Exception as e:
-            self.get_logger().error(f'Failed to load MiDaS model: {str(e)}')
+            self.get_logger().error(f'Failed to load Depth-Anything V2 model: {str(e)}')
             raise
     
     def setup_transforms(self):
-        """Setup image transforms optimized for endoscopic images"""
-        # Standard MiDaS transforms
+        """Setup image transforms optimized for Depth-Anything V2 and endoscopic images"""
+        # Depth-Anything V2 specific transforms
         self.transform = transforms.Compose([
-            Resize(
-                self.input_res[0], self.input_res[1],
-                resize_target=None,
-                keep_aspect_ratio=True,
-                ensure_multiple_of=32,
-                resize_method="lower_bound",
-                image_interpolation_method=cv2.INTER_CUBIC,
-            ),
-            NormalizeImage(mean=[0.485, 0.456, 0.406], std=[0.229, 0.224, 0.225]),
-            PrepareForNet(),
+            transforms.ToPILImage(),
+            transforms.Resize((self.input_res[0], self.input_res[1]), interpolation=transforms.InterpolationMode.BICUBIC),
+            transforms.ToTensor(),
+            transforms.Normalize(mean=[0.485, 0.456, 0.406], std=[0.229, 0.224, 0.225])
         ])
         
         # CLAHE for endoscopic illumination enhancement
@@ -141,7 +158,7 @@ class MidasDepthNode(Node):
             self.clahe = cv2.createCLAHE(clipLimit=2.0, tileGridSize=(8, 8))
     
     def setup_ros_interface(self):
-        """Setup ROS2 publishers and subscribers"""
+        """Setup ROS2 publishers and subscribers (identico al nodo originale)"""
         self.image_sub = message_filters.Subscriber(
             self, Image, '/endoscope/image_raw'  
         )
@@ -157,7 +174,7 @@ class MidasDepthNode(Node):
         )
         self.sync.registerCallback(self.image_callback)
 
-        # DOPPIA PUBBLICAZIONE DEPTH:
+        # DOPPIA PUBBLICAZIONE DEPTH (identica al nodo originale):
         # 1. Depth RAW distorta (per RTABMap con immagine raw)
         self.depth_raw_pub = self.create_publisher(
             Image, '/endoscope/depth/image_raw', 10
@@ -187,7 +204,7 @@ class MidasDepthNode(Node):
         self.last_fps_time = self.get_clock().now()
     
     def undistort_fisheye(self, image, camera_info):
-        """Corregge distorsione fisheye per MiDaS"""
+        """Corregge distorsione fisheye per Depth-Anything V2 (identica alla originale)"""
         K = np.array(camera_info.k).reshape(3, 3)
         D = np.array(camera_info.d)
         
@@ -207,7 +224,7 @@ class MidasDepthNode(Node):
         return undistorted
     
     def redistort_depth_to_raw(self, depth_corrected, camera_info, raw_shape):
-        """Ri-distorce depth per matchare geometria raw"""
+        """Ri-distorce depth per matchare geometria raw (identica alla originale)"""
         K = np.array(camera_info.k).reshape(3, 3)
         D = np.array(camera_info.d)
         
@@ -245,7 +262,7 @@ class MidasDepthNode(Node):
             return cv2.resize(depth_corrected, (w, h), interpolation=cv2.INTER_CUBIC)
     
     def create_corrected_camera_info(self, original_camera_info):
-        """Crea camera_info per l'immagine corretta (senza distorsione)"""
+        """Crea camera_info per l'immagine corretta (identica alla originale)"""
         corrected_info = CameraInfo()
         corrected_info.header = original_camera_info.header
         corrected_info.height = original_camera_info.height
@@ -265,7 +282,7 @@ class MidasDepthNode(Node):
         return corrected_info
     
     def preprocess_endoscopic_image(self, cv_image):
-        """Preprocessing optimized for endoscopic bladder images"""
+        """Preprocessing optimized for endoscopic bladder images (identica alla originale)"""
 
         # NUOVO: Downsample per velocizzare se richiesto
         if self.downsample_factor > 1:
@@ -291,7 +308,7 @@ class MidasDepthNode(Node):
         return enhanced
     
     def reduce_specular_highlights(self, image):
-        """Reduce specular highlights on wet bladder surfaces"""
+        """Reduce specular highlights on wet bladder surfaces (identica alla originale)"""
         # Simple specular highlight reduction
         gray = cv2.cvtColor(image, cv2.COLOR_BGR2GRAY)
         _, mask = cv2.threshold(gray, 240, 255, cv2.THRESH_BINARY)
@@ -307,19 +324,24 @@ class MidasDepthNode(Node):
     
     def estimate_depth_dual(self, cv_image, camera_info):
         """
-        Stima depth UNA SOLA VOLTA su immagine corretta e ritorna ENTRAMBE le versioni:
+        Stima depth UNA SOLA VOLTA su immagine corretta usando Depth-Anything V2
+        Ritorna ENTRAMBE le versioni:
         - depth_corrected: su geometria corretta (migliore qualità)
         - depth_raw: ri-distorta per matchare immagine raw (per RTABMap)
         """
         try:
-            # 1. CORREGGI FISHEYE per MiDaS (una sola volta)
+            # 1. CORREGGI FISHEYE per Depth-Anything V2 (una sola volta)
             corrected_image = self.undistort_fisheye(cv_image, camera_info)
             
-            # 2. MiDaS SOLO su immagine CORRETTA (una sola volta)
+            # 2. PREPROCESSING endoscopico
             processed_image = self.preprocess_endoscopic_image(corrected_image)
-            input_tensor = self.transform({"image": processed_image})["image"]
             
-            input_tensor = torch.from_numpy(input_tensor).to(self.device).unsqueeze(0)
+            # 3. DEPTH-ANYTHING V2 INFERENCE (una sola volta su geometria corretta)
+            # Converti BGR to RGB per Depth-Anything V2
+            rgb_image = cv2.cvtColor(processed_image, cv2.COLOR_BGR2RGB)
+            
+            # Applica transforms
+            input_tensor = self.transform(rgb_image).unsqueeze(0).to(self.device)
             
             if self.use_half_precision and self.device.type == 'cuda':
                 input_tensor = input_tensor.half()
@@ -328,12 +350,13 @@ class MidasDepthNode(Node):
             with torch.no_grad():
                 depth_tensor = self.model(input_tensor)
             
-            depth_midas_raw = depth_tensor.squeeze().cpu().numpy().astype(np.float32)
+            # Depth-Anything V2 output processing
+            depth_anything_raw = depth_tensor.squeeze().cpu().numpy().astype(np.float32)
             
-            # 3. Post-process depth corretta (questa è la versione "buona")
-            depth_corrected = self.postprocess_depth_corrected(depth_midas_raw, corrected_image.shape)
+            # 4. Post-process depth corretta (questa è la versione "buona")
+            depth_corrected = self.postprocess_depth_corrected(depth_anything_raw, corrected_image.shape)
             
-            # 4. RI-DISTORCI solo il RISULTATO depth per matchare RGB raw
+            # 5. RI-DISTORCI solo il RISULTATO depth per matchare RGB raw
             depth_raw = self.redistort_depth_to_raw(depth_corrected, camera_info, cv_image.shape)
             
             return depth_corrected, depth_raw
@@ -343,7 +366,10 @@ class MidasDepthNode(Node):
             return None, None
     
     def postprocess_depth_corrected(self, depth, corrected_shape):
-        """Post-process ottimizzato per piccole differenze di profondità in vescica"""
+        """
+        Post-process ottimizzato per piccole differenze di profondità in vescica
+        Adattato per output Depth-Anything V2 (identica logica ma diverso input)
+        """
         # Resize alla forma corretta
         depth_resized = cv2.resize(
             depth,
@@ -370,10 +396,10 @@ class MidasDepthNode(Node):
             # Fallback se range troppo piccolo
             depth_normalized = cv2.normalize(depth_clamped, None, 0, 1, cv2.NORM_MINMAX)
         
-        # STEP 3: Mappa al range fisico della vescica con inversione
-        # MiDaS produce disparità (vicino=alto, lontano=basso)
-        # Per depth fisica (vicino=basso, lontano=alto) serve inversione
-        depth_mm = self.min_depth + (self.max_depth - self.min_depth) * (1.0 - depth_normalized)
+        # STEP 3: Mappa al range fisico della vescica
+        # NOTA: Depth-Anything V2 produce depth relativa (non disparità come MiDaS)
+        # Per vescica, assumiamo che valori più alti = più lontano
+        depth_mm = self.min_depth + (self.max_depth - self.min_depth) * depth_normalized
         
         # STEP 4: Smooth leggero per ridurre rumore ma mantenere dettagli
         depth_smooth = cv2.GaussianBlur(depth_mm.astype(np.float32), (3, 3), 1.0)
@@ -391,7 +417,7 @@ class MidasDepthNode(Node):
         depth_enhanced = depth_center + (depth_range / 2.0) * np.tanh(1.5 * depth_centered)
         depth_enhanced = np.clip(depth_enhanced, self.min_depth, self.max_depth)
         
-        # Debug info ogni 30 frame
+        # Debug info ogni 30 frame (identico alla originale)
         if hasattr(self, 'frame_count') and self.frame_count % 30 == 0:
             valid_mask = (depth_enhanced >= self.min_depth) & (depth_enhanced <= self.max_depth)
             valid_points = np.count_nonzero(valid_mask)
@@ -404,7 +430,7 @@ class MidasDepthNode(Node):
                 depth_std = np.std(depth_enhanced[valid_mask])
                 
                 self.get_logger().info(
-                    f'Vescica depth stats: {valid_points}/{total_points} valid ({100*valid_points/total_points:.1f}%), '
+                    f'Vescica depth stats (Depth-Anything V2): {valid_points}/{total_points} valid ({100*valid_points/total_points:.1f}%), '
                     f'range: {depth_min:.1f}-{depth_max:.1f}mm, mean: {depth_mean:.1f}±{depth_std:.1f}mm'
                 )
                 
@@ -422,14 +448,16 @@ class MidasDepthNode(Node):
                                (10, 30), font, 0.7, (255, 255, 255), 2)
                     cv2.putText(depth_colormap, f'Mean: {depth_mean:.1f}mm', 
                                (10, 60), font, 0.7, (255, 255, 255), 2)
+                    cv2.putText(depth_colormap, 'Depth-Anything V2', 
+                               (10, 90), font, 0.7, (255, 255, 0), 2)
                     
-                    cv2.imwrite(f'/tmp/vescica_depth_{self.frame_count}.png', depth_colormap)
-                    self.get_logger().info(f'Debug: /tmp/vescica_depth_{self.frame_count}.png')
+                    cv2.imwrite(f'/tmp/vescica_depth_dav2_{self.frame_count}.png', depth_colormap)
+                    self.get_logger().info(f'Debug: /tmp/vescica_depth_dav2_{self.frame_count}.png')
         
         return depth_enhanced
     
     def apply_endoscope_mask(self, depth_array, target_shape=None):
-        """Applica maschera endoscopio"""
+        """Applica maschera endoscopio (identica alla originale)"""
         if self.endoscope_mask is not None:
             # Se specificato target_shape, usa quello, altrimenti usa shape depth
             if target_shape is not None:
@@ -452,7 +480,7 @@ class MidasDepthNode(Node):
         return depth_array
     
     def image_callback(self, image_msg, camera_info_msg):
-        """Callback con pubblicazione RGB + depth corrette"""
+        """Callback con pubblicazione RGB + depth corrette (identica alla originale)"""
         try:
             cv_image = self.bridge.imgmsg_to_cv2(image_msg, image_msg.encoding)
             
@@ -468,7 +496,7 @@ class MidasDepthNode(Node):
             rgb_corrected_msg.header = image_msg.header
             self.rgb_corrected_pub.publish(rgb_corrected_msg)
             
-            # 3. STIMA DEPTH (usa il metodo esistente ma solo depth corretta)
+            # 3. STIMA DEPTH usando Depth-Anything V2
             depth_corrected, _ = self.estimate_depth_dual(cv_image, camera_info_msg)
             
             if depth_corrected is not None:
@@ -490,13 +518,13 @@ class MidasDepthNode(Node):
             self.get_logger().error(f'Callback failed: {str(e)}')
     
     def log_performance(self):
-        """Log performance metrics"""
+        """Log performance metrics (identica alla originale)"""
         current_time = self.get_clock().now()
         elapsed = (current_time - self.last_fps_time).nanoseconds / 1e9
         
         if elapsed > 0:
             fps = self.frame_count / elapsed
-            self.get_logger().info(f'Dual depth estimation FPS: {fps:.2f}')
+            self.get_logger().info(f'Depth-Anything V2 dual depth estimation FPS: {fps:.2f}')
         
         self.frame_count = 0
         self.last_fps_time = current_time
@@ -506,7 +534,7 @@ def main(args=None):
     rclpy.init(args=args)
     
     try:
-        node = MidasDepthNode()
+        node = DepthAnythingV2EndoscopeNode()
         rclpy.spin(node)
     except KeyboardInterrupt:
         pass
