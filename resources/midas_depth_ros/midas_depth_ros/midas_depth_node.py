@@ -39,9 +39,9 @@ class MidasDepthNode(Node):
         self.declare_parameter('optimize_transforms', True)
         self.declare_parameter('use_half_precision', True)
         self.declare_parameter('apply_vesica_preprocessing', True)
-        self.declare_parameter('depth_scale_factor', 1000.0)  # Convert to mm
-        self.declare_parameter('max_depth', 200.0)            # 20cm per vescica
-        self.declare_parameter('min_depth', 1.0)              # 1mm minimo
+        self.declare_parameter('depth_scale_factor', 100.0)  # Convert to mm
+        self.declare_parameter('max_depth', 150.0)       # 20cm per vescica
+        self.declare_parameter('min_depth', 10.0)              # 1mm minimo
         self.declare_parameter('endoscope_mask_path', '/root/endoscope_mask.png')
 
         # Get parameters
@@ -343,7 +343,7 @@ class MidasDepthNode(Node):
             return None, None
     
     def postprocess_depth_corrected(self, depth, corrected_shape):
-        """Post-process su depth corretta con range clipping per vescica"""
+        """Post-process ottimizzato per piccole differenze di profondità in vescica"""
         # Resize alla forma corretta
         depth_resized = cv2.resize(
             depth,
@@ -351,36 +351,82 @@ class MidasDepthNode(Node):
             interpolation=cv2.INTER_CUBIC
         )
         
-        # Normalizza e scala al range completo
-        depth_normalized = cv2.normalize(depth_resized, None, 0, 1, cv2.NORM_MINMAX)
-        depth_mm = self.max_depth * (1.0 - depth_normalized)
+        # STEP 1: Usa percentili per eliminare outliers estremi
+        p1 = np.percentile(depth_resized, 1)
+        p99 = np.percentile(depth_resized, 99)
         
-        # AGGIUNTO: Applica range di profondità min/max
-        depth_mm = np.clip(depth_mm, self.min_depth, self.max_depth)
+        # Clamp agli estremi per eliminare valori anomali
+        depth_clamped = np.clip(depth_resized, p1, p99)
         
-        # AGGIUNTO: Azzera valori fuori range per essere più netto
-        depth_mm = np.where(
-            (depth_mm >= self.min_depth) & (depth_mm <= self.max_depth), 
-            depth_mm, 
-            0
-        )
+        # STEP 2: Normalizzazione robusta usando percentili interni
+        p5 = np.percentile(depth_clamped, 5)
+        p95 = np.percentile(depth_clamped, 95)
         
-        # Smooth su geometria corretta
-        depth_smooth = cv2.medianBlur(depth_mm.astype(np.float32), 5)
+        if p95 > p5:
+            # Normalizza usando il range p5-p95 per massimo contrasto
+            depth_normalized = (depth_clamped - p5) / (p95 - p5)
+            depth_normalized = np.clip(depth_normalized, 0, 1)
+        else:
+            # Fallback se range troppo piccolo
+            depth_normalized = cv2.normalize(depth_clamped, None, 0, 1, cv2.NORM_MINMAX)
         
-        # AGGIUNTO: Debug info sui punti validi (ogni 30 frame)
+        # STEP 3: Mappa al range fisico della vescica con inversione
+        # MiDaS produce disparità (vicino=alto, lontano=basso)
+        # Per depth fisica (vicino=basso, lontano=alto) serve inversione
+        depth_mm = self.min_depth + (self.max_depth - self.min_depth) * (1.0 - depth_normalized)
+        
+        # STEP 4: Smooth leggero per ridurre rumore ma mantenere dettagli
+        depth_smooth = cv2.GaussianBlur(depth_mm.astype(np.float32), (3, 3), 1.0)
+        
+        # STEP 5: Applica range finale
+        depth_final = np.clip(depth_smooth, self.min_depth, self.max_depth)
+        
+        # STEP 6: Enhanced contrast stretching per vescica
+        # Aumenta il contrasto nel range di interesse
+        depth_range = self.max_depth - self.min_depth
+        depth_center = (self.max_depth + self.min_depth) / 2.0
+        
+        # Applica stretching sigmoidale per enfatizzare differenze piccole
+        depth_centered = (depth_final - depth_center) / (depth_range / 2.0)
+        depth_enhanced = depth_center + (depth_range / 2.0) * np.tanh(1.5 * depth_centered)
+        depth_enhanced = np.clip(depth_enhanced, self.min_depth, self.max_depth)
+        
+        # Debug info ogni 30 frame
         if hasattr(self, 'frame_count') and self.frame_count % 30 == 0:
-            valid_points = np.count_nonzero(depth_smooth > 0)
-            total_points = depth_smooth.size
-            depth_min = np.min(depth_smooth[depth_smooth > 0]) if valid_points > 0 else 0
-            depth_max = np.max(depth_smooth[depth_smooth > 0]) if valid_points > 0 else 0
+            valid_mask = (depth_enhanced >= self.min_depth) & (depth_enhanced <= self.max_depth)
+            valid_points = np.count_nonzero(valid_mask)
+            total_points = depth_enhanced.size
             
-            self.get_logger().info(
-                f'Depth stats: {valid_points}/{total_points} valid points ({100*valid_points/total_points:.1f}%), '
-                f'range: {depth_min:.1f}-{depth_max:.1f}mm'
-            )
+            if valid_points > 0:
+                depth_min = np.min(depth_enhanced[valid_mask])
+                depth_max = np.max(depth_enhanced[valid_mask])
+                depth_mean = np.mean(depth_enhanced[valid_mask])
+                depth_std = np.std(depth_enhanced[valid_mask])
+                
+                self.get_logger().info(
+                    f'Vescica depth stats: {valid_points}/{total_points} valid ({100*valid_points/total_points:.1f}%), '
+                    f'range: {depth_min:.1f}-{depth_max:.1f}mm, mean: {depth_mean:.1f}±{depth_std:.1f}mm'
+                )
+                
+                # Salva immagine debug colorata ogni 60 frame
+                if self.frame_count % 60 == 0:
+                    # Normalizza per visualizzazione con contrasto alto
+                    depth_vis = cv2.normalize(depth_enhanced, None, 0, 255, cv2.NORM_MINMAX, cv2.CV_8U)
+                    
+                    # Usa colormap con alta sensibilità per piccole variazioni
+                    depth_colormap = cv2.applyColorMap(depth_vis, cv2.COLORMAP_TURBO)
+                    
+                    # Sovrapponi valori di profondità per debug
+                    font = cv2.FONT_HERSHEY_SIMPLEX
+                    cv2.putText(depth_colormap, f'Range: {depth_min:.0f}-{depth_max:.0f}mm', 
+                               (10, 30), font, 0.7, (255, 255, 255), 2)
+                    cv2.putText(depth_colormap, f'Mean: {depth_mean:.1f}mm', 
+                               (10, 60), font, 0.7, (255, 255, 255), 2)
+                    
+                    cv2.imwrite(f'/tmp/vescica_depth_{self.frame_count}.png', depth_colormap)
+                    self.get_logger().info(f'Debug: /tmp/vescica_depth_{self.frame_count}.png')
         
-        return depth_smooth
+        return depth_enhanced
     
     def apply_endoscope_mask(self, depth_array, target_shape=None):
         """Applica maschera endoscopio"""

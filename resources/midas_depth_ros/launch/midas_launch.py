@@ -39,14 +39,14 @@ def generate_launch_description():
     
     depth_scale_factor_arg = DeclareLaunchArgument(
         'depth_scale_factor',
-        default_value='1000.0',
+        default_value='100.0',
         description='Scale factor for depth values (1000 = mm)'
     )
     
     # AGGIORNATO: Range più realistico per endoscopi
     max_depth_arg = DeclareLaunchArgument(
         'max_depth',
-        default_value='2000.0',  # 2m invece di 200mm
+        default_value='200.0',
         description='Maximum expected depth in mm (endoscope range)'
     )
     
