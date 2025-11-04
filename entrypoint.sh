@@ -58,7 +58,7 @@ echo "Calibration completed successfully!"
 echo "Starting camera driver..."
 ros2 run v4l2_camera v4l2_camera_node --ros-args \
     -p video_device:="/dev/video2" \
-    -p image_size:="[1280, 720]" \
+    -p image_size:="[1920, 1080]" \
     -p pixel_format:="YUYV" \
     -p framerate:=30.0 \
     -p brightness:=-11 \

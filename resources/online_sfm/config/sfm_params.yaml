@@ -1,6 +1,92 @@
-endoscope_sfm:
+# SfM Parameters per Endoscopio 1080p
+# Ottimizzato per oggetti di ~20cm con TF: Z uscente, X destra, Y basso
+
+sfm_node:
   ros__parameters:
-    # Ottimizzato per oggetti piccoli (20cm)
-    min_baseline_meters: 0.003    # 3mm - movimento minimo per oggetto piccolo
-    min_rotation_degrees: 0.8     # Rotazione minima per trigger
-    ransac_threshold: 12.0        # Soglia RANSAC per fisheye
+    
+    # === MOTION THRESHOLDS ===
+    motion:
+      min_baseline_meters: 0.003      # 3mm - baseline minima per oggetti piccoli
+      min_rotation_degrees: 1.0       # 1° - rotazione minima per keyframe
+    
+    # === SIFT FEATURE DETECTION ===
+    sift:
+      max_features: 3000              # Max features per frame (ottimo per 1080p)
+      octave_layers: 4                # Layers per octave (più dettaglio)
+      contrast_threshold: 0.02        # RILASSATO per features deboli (era 0.04)
+      edge_threshold: 8.0             # RILASSATO per più features (era 10)
+      sigma: 1.6                      # Sigma standard
+    
+    # === IMAGE PROCESSING ===
+    image_processing:
+      enable_clahe: true              # Migliora contrasto locale
+      clahe_clip_limit: 2.5           # Limite clipping CLAHE
+      clahe_tile_size: 8              # Dimensione tile CLAHE
+      enable_sharpening: false        # Sharpening opzionale
+      sharpening_strength: 0.3        # Forza sharpening
+    
+    # === FEATURE MATCHING ===
+    matching:
+      lowe_ratio_threshold: 0.8       # Lowe's ratio test
+      min_matches_for_triangulation: 30  # Matches minimi per triangolazione
+      enable_cross_check: false       # Cross-check matching (più lento ma robusto)
+    
+    # === TRIANGULATION VALIDATION ===
+    triangulation:
+      min_angle_degrees: 1.0          # RILASSATO per features deboli (era 2°)
+      max_angle_degrees: 179.0        # RILASSATO per features deboli (era 178°)
+      max_reprojection_error_px: 8.0  # ADATTATO per 1080p (era 5px)
+      min_depth_meters: 0.005         # 5mm - profondità minima
+      max_depth_meters: 0.5           # 50cm - profondità massima per oggetti 20cm
+      max_triangulation_error_meters: 0.03  # 3cm - errore triangolazione max
+      image_margin_px: 30             # ADATTATO per 1080p (era 20px)
+    
+    # === POINT CLOUD FILTERING ===
+    point_cloud:
+      enable_voxel_filtering: true    # Filtraggio voxel per densità uniforme
+      voxel_leaf_size: 0.002          # 2mm - risoluzione voxel per oggetti 20cm
+      enable_outlier_filtering: true  # Rimozione outlier
+      outlier_mean_k: 20              # Punti vicini per outlier detection
+      outlier_std_threshold: 2.0      # Soglia deviazione standard
+    
+    # === PUBLISHING ===
+    publishing:
+      world_frame: "world"            # Frame di riferimento mondo
+      camera_frame: "camera"          # Frame camera endoscopio
+      publish_every_n_frames: 1       # Pubblica ogni N frame
+      publish_trajectory: true        # Pubblica traiettoria camera
+    
+    # === DIAGNOSTICS ===
+    diagnostics:
+      enable_detailed_logging: true   # Log dettagliato per debug
+      enable_image_diagnostics: false # Diagnostica immagini (verbose)
+      log_every_n_frames: 5          # Log ogni N frame
+
+# ===================================================================
+# CONFIGURAZIONI ALTERNATIVE COMMENTATE
+# ===================================================================
+
+# === PER OGGETTI PIÙ GRANDI (>50cm) ===
+# motion:
+#   min_baseline_meters: 0.01       # 1cm baseline
+#   min_rotation_degrees: 2.0       # 2° rotazione
+# triangulation:
+#   max_depth_meters: 2.0           # 2m profondità max
+# point_cloud:
+#   voxel_leaf_size: 0.005          # 5mm voxel
+
+# === PER PERFORMANCE MAGGIORE (meno features) ===
+# sift:
+#   max_features: 1500              # Meno features
+#   contrast_threshold: 0.03        # Più selettivo
+# publishing:
+#   publish_every_n_frames: 3       # Pubblica meno frequentemente
+
+# === PER QUALITÀ MASSIMA (più lento) ===
+# sift:
+#   max_features: 5000              # Più features
+#   contrast_threshold: 0.015       # Ancora più sensibile
+# matching:
+#   enable_cross_check: true        # Cross-check robusto
+# triangulation:
+#   max_reprojection_error_px: 5.0  # Errore più stringente
